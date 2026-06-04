@@ -137,10 +137,12 @@ h1, h2, h3, h4, h5, h6 {
   flex: 1;
   margin-left: var(--sidebar-width);
   padding: 2rem;
+  padding-bottom: 3rem;
   min-height: 100vh;
   background: radial-gradient(circle at 10% 20%, rgba(19, 27, 46, 0.4) 0%, rgba(11, 15, 25, 1) 90%);
   transition: var(--transition-smooth);
   min-width: 0;
+  overflow-x: hidden;
 }
 
 /* Mobile Simulator Framework (For security guards view) */
@@ -634,6 +636,7 @@ h1, h2, h3, h4, h5, h6 {
     margin-left: 0;
     padding: 1rem;
     padding-top: 1.5rem;
+    padding-bottom: 2.5rem;
     width: 100%;
     max-width: 100vw;
     overflow-x: hidden;
@@ -654,12 +657,14 @@ h1, h2, h3, h4, h5, h6 {
   .mobile-simulator-container {
     padding: 0.5rem 0;
     overflow-x: auto;
+    justify-content: flex-start;
   }
   .mobile-phone-frame {
     transform: none;
-    width: 340px;
-    height: 700px;
-    border-radius: 30px;
+    width: 320px;
+    height: 680px;
+    border-radius: 28px;
+    flex-shrink: 0;
   }
 }
 
@@ -1129,6 +1134,7 @@ h1, h2, h3, h4, h5, h6 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .header-desc {
@@ -1138,6 +1144,7 @@ h1, h2, h3, h4, h5, h6 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .header-right {
@@ -1176,9 +1183,24 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Responsive Overrides */
+@media (max-width: 1200px) {
+  .header-title {
+    font-size: 1.6rem;
+  }
+}
+
 @media (max-width: 1024px) {
   .header-title {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .header-desc {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    font-size: 0.85rem;
   }
 }
 
