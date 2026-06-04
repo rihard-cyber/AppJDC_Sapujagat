@@ -157,7 +157,7 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
       </div>
 
       {/* 2. FINDINGS TICKETS BOARD (Tindak Lanjut Notifikasi) */}
-      <div className="glass-panel" style={{ padding: '1.5rem' }}>
+      <div className="glass-panel panel-padding">
         <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-warning)' }}>
           <AlertTriangle size={18} /> Tindak Lanjut Notifikasi Temuan
         </h3>
@@ -166,11 +166,8 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
           {findings.map(find => (
             <div 
               key={find.id} 
-              className="glass-panel" 
+              className="glass-panel finding-card" 
               style={{ 
-                padding: '1rem', 
-                display: 'flex', 
-                gap: '1rem',
                 borderLeft: `4px solid ${
                   find.status === 'Open' ? 'var(--color-danger)' : 
                   find.status === 'On Progress' ? 'var(--color-warning)' : 'var(--color-success)'
@@ -181,13 +178,13 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
                 <img 
                   src={find.foto} 
                   alt={find.kategori} 
-                  style={{ width: '80px', height: '80px', borderRadius: '6px', objectFit: 'cover', border: '1px solid var(--border-glass)' }}
+                  className="finding-card-img"
                 />
               )}
               
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+              <div className="finding-card-content">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span className="badge" style={{ 
                       background: find.status === 'Open' ? 'rgba(239, 68, 68, 0.15)' : find.status === 'On Progress' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)',
                       color: find.status === 'Open' ? 'var(--color-danger)' : find.status === 'On Progress' ? 'var(--color-warning)' : 'var(--color-success)',
@@ -218,6 +215,7 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: '0.3rem', 
+                  flexWrap: 'wrap',
                   fontSize: '0.7rem', 
                   color: find.status === 'Closed' ? 'var(--color-success)' : 'var(--color-warning)',
                   fontWeight: 600
@@ -229,7 +227,7 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
                 <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Pelapor: {find.pelapor}</p>
  
                 {/* Status Updater */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.5rem' }}>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Ubah Status:</span>
                   <select 
                     value={find.status} 

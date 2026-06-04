@@ -90,18 +90,21 @@ h1, h2, h3, h4, h5, h6 {
 .gradient-text {
   background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #1d4ed8 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .gradient-text-success {
   background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .gradient-text-danger {
   background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -1029,6 +1032,51 @@ h1, h2, h3, h4, h5, h6 {
     min-width: 120px;
     padding: 0.5rem 0.75rem;
     font-size: 0.75rem;
+  }
+}
+
+/* Responsive Panel Padding */
+.panel-padding {
+  padding: 1.5rem;
+}
+
+/* Findings Ticket Card styling */
+.finding-card {
+  padding: 1.25rem;
+  display: flex;
+  gap: 1.25rem;
+  transition: var(--transition-smooth);
+}
+
+.finding-card-img {
+  width: 90px;
+  height: 90px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--border-glass);
+  flex-shrink: 0;
+}
+
+.finding-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+@media (max-width: 576px) {
+  .panel-padding {
+    padding: 1rem;
+  }
+  .finding-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .finding-card-img {
+    width: 100%;
+    height: 150px;
   }
 }
 
