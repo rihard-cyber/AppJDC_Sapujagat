@@ -649,52 +649,40 @@ export default function App() {
       {/* Main content body */}
       <main className="main-content">
         {/* Global Header */}
-        <header style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          paddingBottom: '1.5rem', 
-          marginBottom: '2rem', 
-          borderBottom: '1px solid var(--border-glass)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="menu-toggle-btn"
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--border-glass)',
-                borderRadius: '8px',
-                color: 'var(--text-primary)',
-                padding: '0.5rem',
-                display: 'none',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer'
-              }}
-              aria-label="Toggle Sidebar"
-            >
-              {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              padding: '0.4rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border-glass)',
-              display: 'flex',
-              alignItems: 'center'
-            }}>
-              <img src="logo.png" alt="Logo JDC" style={{ height: '36px', width: 'auto', objectFit: 'contain' }} />
+        <header className="global-header">
+          <div className="header-left">
+            <div className="header-brand-row">
+              <button 
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="menu-toggle-btn"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border-glass)',
+                  borderRadius: '8px',
+                  color: 'var(--text-primary)',
+                  padding: '0.5rem',
+                  display: 'none',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+                aria-label="Toggle Sidebar"
+              >
+                {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+              <div className="header-logo-box">
+                <img src="logo.png" alt="Logo JDC" />
+              </div>
             </div>
-            <div>
-              <h1 style={{ fontSize: '1.8rem', fontWeight: 800 }}>
+            <div className="header-text-box">
+              <h1 className="header-title">
                 {currentTab === 'dashboard' && 'Dashboard Manajemen Keamanan'}
                 {currentTab === 'target-compliance' && 'Dashboard Target & SLA Tenant'}
                 {currentTab === 'barcodes' && 'Master Area & Barcode Generator'}
                 {currentTab === 'reports' && 'Laporan Patroli & Log Temuan'}
                 {currentTab === 'guard-simulator' && 'Simulasi Aplikasi Patroli Anggota'}
               </h1>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.2rem' }}>
+              <p className="header-desc">
                 {currentTab === 'dashboard' && 'Pemantauan real-time petugas, status area JDC, dan statistik patroli.'}
                 {currentTab === 'target-compliance' && 'Realisasi patroli, SLA penyelesaian kendala, dan target JDC Tenant.'}
                 {currentTab === 'barcodes' && 'Daftar master area JDC, cetak barcode QR, dan generate massal.'}
@@ -705,31 +693,20 @@ export default function App() {
           </div>
 
           {/* Top Bar Controls & Persona Switcher */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div className="header-right">
             <button 
               onClick={handleResetToProduction}
-              style={{
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: 'var(--color-danger)',
-                padding: '0.4rem 0.8rem',
-                fontSize: '0.8rem',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: 600,
-                transition: 'all 0.2s'
-              }}
+              className="btn-reset-release"
               title="Reset database ke mode kosong untuk siap rilis"
             >
               🧹 Reset Rilis
             </button>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>SIMULASI ROLE</span>
+            <div className="role-switcher-wrapper">
+              <span className="role-switcher-label">SIMULASI ROLE</span>
               <select 
                 value={currentUser.id} 
                 onChange={(e) => handleRoleChange(e.target.value)}
                 className="modern-select"
-                style={{ width: '220px', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
               >
                 {users.map(u => (
                   <option key={u.id} value={u.id}>

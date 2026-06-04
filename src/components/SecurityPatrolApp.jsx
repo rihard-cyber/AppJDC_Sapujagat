@@ -129,6 +129,20 @@ export default function SecurityPatrolApp({ currentUser, areas, onAddReport, onT
 
   const checklistTemplate = getAreaChecklistTemplate(selectedArea);
 
+  // Conditions list for patrol report dropdown
+  const conditionsList = [
+    'Aman dan Kondusif',
+    'Ada Aktivitas',
+    'Renovasi',
+    'Lampu Mati',
+    'CCTV Bermasalah',
+    'Pintu Tidak Terkunci',
+    'Kebocoran / Air',
+    'Orang Mencurigakan',
+    'Kerusakan Fisik',
+    'Temuan Lain'
+  ];
+
   // Initialize checklist answers when area is scanned
   const handleScanArea = (areaId) => {
     const area = areas.find(a => a.id === areaId);
