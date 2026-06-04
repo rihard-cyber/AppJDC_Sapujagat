@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, 
   Shield, 
@@ -285,9 +285,26 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeSOS, setActiveSOS] = useState(null); // Active SOS Panic triggers
   const [toasts, setToasts] = useState([]);
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const roleDropdownRef = useRef(null);
   
   // Audio indicator for SOS
   const [sosAudio, setSosAudio] = useState(null);
+
+  // Close role dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(e.target)) {
+        setIsRoleDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   // Sync to Local Storage
   useEffect(() => {
@@ -711,19 +728,34 @@ export default function App() {
             >
               🧹 Reset Rilis
             </button>
-            <div className="role-switcher-wrapper">
+            <div className="role-switcher-wrapper" ref={roleDropdownRef} style={{ position: 'relative' }}>
               <span className="role-switcher-label">SIMULASI ROLE</span>
-              <select 
-                value={currentUser.id} 
-                onChange={(e) => handleRoleChange(e.target.value)}
-                className="modern-select"
+              {/* Custom dropdown - tidak pakai native select agar tidak overflow di Android */}
+              <button
+                onClick={() => setIsRoleDropdownOpen(prev => !prev)}
+                className="custom-role-btn"
               >
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.nama} ({jabatanShort[u.jabatan] || u.jabatan})
-                  </option>
-                ))}
-              </select>
+                <span className="custom-role-btn-text">
+                  {currentUser.nama} ({jabatanShort[currentUser.jabatan] || currentUser.jabatan})
+                </span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.6, transform: isRoleDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+              {isRoleDropdownOpen && (
+                <div className="custom-role-dropdown">
+                  {users.map(u => (
+                    <button
+                      key={u.id}
+                      onClick={() => { handleRoleChange(String(u.id)); setIsRoleDropdownOpen(false); }}
+                      className={`custom-role-option ${currentUser.id === u.id ? 'active' : ''}`}
+                    >
+                      <span className="custom-role-option-name">{u.nama}</span>
+                      <span className="custom-role-option-role">{jabatanShort[u.jabatan] || u.jabatan}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </header>
