@@ -1,0 +1,8 @@
+{
+  "appId": "com.jdc.sapujagat.patrol",
+  "appName": "JDC Sapujagat Patrol",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
