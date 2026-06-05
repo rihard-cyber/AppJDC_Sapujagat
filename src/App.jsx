@@ -522,7 +522,11 @@ export default function App() {
   };
 
   const handleAddComplaint = (complaint) => {
-    setComplaints(prev => [complaint, ...prev]);
+    setComplaints(prev => {
+      const updated = [complaint, ...prev];
+      localStorage.setItem('smpjdc_complaints', JSON.stringify(updated));
+      return updated;
+    });
     addToast(`Komplain ${complaint.ticketId} berhasil dikirim!`, 'success');
   };
 
