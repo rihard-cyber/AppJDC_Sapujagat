@@ -8,7 +8,6 @@ export default function AbsensiRegu({ users, areas, attendanceLogs, onAddAttenda
     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     return days[new Date().getDay()];
   });
-  const [tanggal, setTanggal] = useState(todayStr);
   const [selectedRegu, setSelectedRegu] = useState('Regu A');
   const [selectedShift, setSelectedShift] = useState('P'); // 'P' | 'S' | 'M' | 'Kh'
 
@@ -30,7 +29,7 @@ export default function AbsensiRegu({ users, areas, attendanceLogs, onAddAttenda
   useEffect(() => {
     // Check if there's already a saved log for this Date + Regu + Shift combination
     const existingLog = attendanceLogs.find(
-      log => log.tanggal === tanggal && log.regu === selectedRegu && log.shift === selectedShift
+      log => log.tanggal === todayStr && log.regu === selectedRegu && log.shift === selectedShift
     );
 
     if (existingLog) {
@@ -55,7 +54,7 @@ export default function AbsensiRegu({ users, areas, attendanceLogs, onAddAttenda
       });
       setRows(defaultRows);
     }
-  }, [selectedRegu, selectedShift, tanggal, users, areas, attendanceLogs]);
+  }, [selectedRegu, selectedShift, users, areas, attendanceLogs]);
 
   const handleRowChange = (index, field, value) => {
     setRows(prev => prev.map((row, idx) => {
@@ -93,7 +92,7 @@ export default function AbsensiRegu({ users, areas, attendanceLogs, onAddAttenda
     }
 
     onAddAttendance({
-      tanggal,
+      tanggal: todayStr,
       hari,
       regu: selectedRegu,
       shift: selectedShift,
@@ -117,7 +116,7 @@ export default function AbsensiRegu({ users, areas, attendanceLogs, onAddAttenda
 
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Metadata Parameters */}
-          <div className="grid-cols-4" style={{ gap: '1rem' }}>
+          <div className="grid-cols-3" style={{ gap: '1rem' }}>
             <div className="step-field">
               <label><Calendar size={12} /> HARI</label>
               <select value={hari} onChange={e => setHari(e.target.value)} className="modern-select">
@@ -127,11 +126,6 @@ export default function AbsensiRegu({ users, areas, attendanceLogs, onAddAttenda
               </select>
             </div>
             
-            <div className="step-field">
-              <label><Calendar size={12} /> TANGGAL</label>
-              <input type="date" value={tanggal} onChange={e => setTanggal(e.target.value)} className="modern-input" required />
-            </div>
-
             <div className="step-field">
               <label><Users size={12} /> REGU</label>
               <select value={selectedRegu} onChange={e => setSelectedRegu(e.target.value)} className="modern-select">

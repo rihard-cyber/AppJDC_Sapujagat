@@ -10,7 +10,6 @@ const KATEGORI_MUTASI = [
 ];
 
 export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteLog, areas }) {
-  const [waktu, setWaktu] = useState(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
   const [jamKejadian, setJamKejadian] = useState(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
   const [lokasi, setLokasi] = useState('');
   const [uraian, setUraian] = useState('');
@@ -26,9 +25,11 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
       alert('Lokasi dan uraian wajib diisi!');
       return;
     }
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const jamLapor = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const today = now.toISOString().split('T')[0];
     onAddLog({
-      waktu,
+      waktu: jamLapor,
       jamKejadian,
       lokasi,
       uraian: uraian.trim(),
@@ -42,7 +43,6 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
     setLokasi('');
     setKategori('informasi');
     setFoto(null);
-    setWaktu(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
     setJamKejadian(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
   };
 
@@ -63,10 +63,6 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
           </h3>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
             <div className="form-grid">
-              <div className="step-field">
-                <label><Clock size={12} /> JAM LAPOR</label>
-                <input type="time" value={waktu} onChange={e => setWaktu(e.target.value)} className="modern-input" />
-              </div>
               <div className="step-field">
                 <label><Clock size={12} /> JAM KEJADIAN</label>
                 <input type="time" value={jamKejadian} onChange={e => setJamKejadian(e.target.value)} className="modern-input" />
