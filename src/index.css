@@ -71,19 +71,50 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Glassmorphism utility */
+@property --ga {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes ga {
+  to { --ga: 360deg; }
+}
+
 .glass-panel {
+  position: relative;
+  isolation: isolate;
   background: var(--bg-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-glass);
+  border: 1px solid transparent;
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-premium);
   transition: var(--transition-smooth);
 }
 
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--ga),
+    transparent 0deg, var(--color-primary) 60deg, var(--color-primary-glow) 120deg,
+    transparent 180deg, var(--color-primary) 240deg, var(--color-primary-glow) 300deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: ga 4s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
 .glass-panel:hover {
-  border-color: rgba(59, 130, 246, 0.25);
-  box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.45), 0 0 15px rgba(59, 130, 246, 0.05);
+  box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.45), 0 0 20px var(--color-primary-glow);
+}
+.glass-panel:hover::before {
+  animation-duration: 1.5s;
 }
 
 /* Typography styles */
@@ -703,15 +734,17 @@ h1, h2, h3, h4, h5, h6 {
 /* ── Glass Panel → Solid White Card ── */
 .theme-light .glass-panel {
   background: #ffffff;
-  border: 1px solid var(--border-glass);
+  border: 1px solid transparent;
   color: var(--text-primary);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 .theme-light .glass-panel:hover {
-  border-color: #d1d5db;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+.theme-light .glass-panel:hover::before {
+  animation-duration: 1.5s;
 }
 
 /* ── Sidebar ── */
@@ -1880,6 +1913,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .login-input-wrap {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -1891,9 +1925,22 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .login-input-wrap:focus-within {
-  border-color: var(--color-primary);
+  border-color: transparent;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   background: rgba(255, 255, 255, 0.06);
+}
+.login-input-wrap:focus-within::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--ga), transparent, var(--color-primary), var(--color-primary-glow), transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: ga 2s linear infinite;
+  pointer-events: none;
 }
 
 .login-input-wrap svg {
@@ -2242,7 +2289,21 @@ h1, h2, h3, h4, h5, h6 {
 .step-user-card h4 { font-size: 0.85rem; }
 .step-user-card p { font-size: 0.7rem; }
 
-.step-field { display: flex; flex-direction: column; gap: 0.35rem; }
+.step-field { position: relative; display: flex; flex-direction: column; gap: 0.35rem; }
+.step-field:focus-within::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: calc(var(--border-radius-sm) + 1px);
+  padding: 1.5px;
+  background: conic-gradient(from var(--ga), transparent, var(--color-primary), var(--color-primary-glow), transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: ga 2s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
 .step-field label {
   font-size: 0.7rem; color: var(--text-secondary);
   font-weight: 600; letter-spacing: 0.03em;
@@ -2577,10 +2638,25 @@ table {
 }
 
 .form-field {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   min-width: 0;
+}
+.form-field:focus-within::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--ga), transparent, var(--color-primary), var(--color-primary-glow), transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: ga 2s linear infinite;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .form-label {
