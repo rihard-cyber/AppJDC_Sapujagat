@@ -89,6 +89,15 @@ export default function ComplaintForm({ onAddComplaint }) {
       history: [{ status: 'Baru', timestamp: new Date().toISOString(), note: 'Komplain dibuat' }],
       waStatus: 'Belum Dikirim'
     };
+    // Simpan langsung ke localStorage sebagai jaring pengaman
+    try {
+      const existing = JSON.parse(localStorage.getItem('smpjdc_complaints') || '[]');
+      existing.unshift(complaint);
+      localStorage.setItem('smpjdc_complaints', JSON.stringify(existing));
+      console.log('[Form] Komplain disimpan langsung ke localStorage, total:', existing.length);
+    } catch (e) {
+      console.warn('[Form] Gagal simpan langsung:', e);
+    }
     onAddComplaint(complaint);
     setTicketId(id);
     setSubmitted(true);
