@@ -17,6 +17,19 @@ const FLOORS = [
 export default function ComplaintForm({ onAddComplaint }) {
   const [step, setStep] = useState('splash');
   const [progress, setProgress] = useState(0);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [floor, setFloor] = useState('');
+  const [tenant, setTenant] = useState('');
+  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [errors, setErrors] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [ticketId, setTicketId] = useState('');
+  const [trackMode, setTrackMode] = useState(false);
+  const [trackId, setTrackId] = useState('');
+  const [trackData, setTrackData] = useState(null);
 
   // Splash animation
   useEffect(() => {
