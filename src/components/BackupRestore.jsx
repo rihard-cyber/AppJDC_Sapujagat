@@ -3,7 +3,7 @@ import { Download, Upload, AlertTriangle, CheckCircle, Database, RefreshCw } fro
 
 const ALL_KEYS = [
   'sapujagat_users', 'sapujagat_areas', 'sapujagat_reports', 'sapujagat_findings',
-  'smpjdc_mutasi_logs', 'smpjdc_attendance_logs', 'smpjdc_theme',
+  'smpjdc_mutasi_logs', 'smpjdc_attendance_logs', 'smpjdc_complaints', 'smpjdc_theme',
   'smpjdc_db_version', 'smpjdc_session', 'smpjdc_login_attempts'
 ];
 

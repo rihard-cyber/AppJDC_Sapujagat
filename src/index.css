@@ -3002,6 +3002,9 @@ table {
   .form-grid {
     grid-template-columns: 1fr;
   }
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
   .form-grid-3 {
     grid-template-columns: 1fr;
   }

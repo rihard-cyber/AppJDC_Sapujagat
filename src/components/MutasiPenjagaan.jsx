@@ -62,7 +62,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
             <span>Input Catatan Mutasi</span>
           </h3>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-            <div className="grid-cols-2" style={{ gap: '0.75rem' }}>
+            <div className="form-grid">
               <div className="step-field">
                 <label><Clock size={12} /> JAM LAPOR</label>
                 <input type="time" value={waktu} onChange={e => setWaktu(e.target.value)} className="modern-input" />
@@ -127,9 +127,9 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
               <span>Tabel Mutasi / Laporan (Kejadian / Peristiwa)</span>
             </h3>
             
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari laporan..." className="modern-input" style={{ width: '150px', padding: '0.4rem 0.6rem', fontSize: '0.8rem' }} />
-              <select value={filterKat} onChange={e => setFilterKat(e.target.value)} className="modern-select" style={{ width: '100px', padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari laporan..." className="modern-input" style={{ width: '150px', padding: '0.4rem 0.6rem', fontSize: '0.8rem', maxWidth: '100%' }} />
+              <select value={filterKat} onChange={e => setFilterKat(e.target.value)} className="modern-select" style={{ width: '100px', padding: '0.4rem 0.6rem', fontSize: '0.8rem', maxWidth: '100%' }}>
                 <option value="">Semua Kategori</option>
                 {KATEGORI_MUTASI.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
               </select>

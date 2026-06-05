@@ -260,9 +260,9 @@ export default function AbsensiRegu({ users, areas, attendanceLogs, onAddAttenda
           <span>Histori Absensi & Plotting Terdaftar</span>
         </h3>
         
-        <div className="grid-cols-3" style={{ gap: '1rem' }}>
+          <div className="grid-cols-3" style={{ gap: '1rem' }}>
           {attendanceLogs.length === 0 ? (
-            <div style={{ gridColumn: 'span 3', textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
               Belum ada log absensi terdaftar. Silakan buat absensi baru di atas.
             </div>
           ) : (

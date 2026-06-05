@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { hashPin, validateSession } from './utils/security';
 import { 
   LayoutDashboard, 
@@ -12,7 +12,6 @@ import {
   Menu,
   X,
   BookOpen,
-  UserPlus,
   Users,
   Sun,
   Moon,
@@ -20,7 +19,6 @@ import {
   Mail,
   MessageSquare,
   Check,
-  RefreshCw,
   Key,
   FileText,
   Database

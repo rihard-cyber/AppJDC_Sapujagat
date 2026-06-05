@@ -100,7 +100,7 @@ export default function UserManagement({ users, onAddUser }) {
         </h3>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="form-grid">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>REGU</label>
               <div className="login-input-wrap">
@@ -283,7 +283,7 @@ export default function UserManagement({ users, onAddUser }) {
             <Users size={18} className="text-primary" />
             <span>Daftar User ({users.length})</span>
           </h3>
-          <div className="login-input-wrap" style={{ width: '220px' }}>
+          <div className="login-input-wrap" style={{ width: '220px', maxWidth: '100%' }}>
             <Search size={14} />
             <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama / NRP / role / regu..." className="modern-input" style={{ fontSize: '0.75rem' }} />
           </div>

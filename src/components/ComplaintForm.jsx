@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Camera, User, Building, MapPin, FileText, AlertTriangle, CheckCircle, X, QrCode, ChevronRight, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Send, Camera, User, Building, MapPin, FileText, AlertTriangle, CheckCircle, X, QrCode, ChevronRight } from 'lucide-react';
 
 const CATEGORIES = [
   { id: 'Fasilitas', label: 'Fasilitas', icon: Building, color: '#3b82f6' },
@@ -16,21 +16,7 @@ const FLOORS = [
 
 export default function ComplaintForm({ onAddComplaint }) {
   const [step, setStep] = useState('splash');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [floor, setFloor] = useState('');
-  const [tenant, setTenant] = useState('');
-  const [category, setCategory] = useState('');
-  const [description, setDescription] = useState('');
-  const [photos, setPhotos] = useState([]);
-  const [errors, setErrors] = useState({});
-  const [submitted, setSubmitted] = useState(false);
-  const [ticketId, setTicketId] = useState('');
-  const [trackMode, setTrackMode] = useState(false);
-  const [trackId, setTrackId] = useState('');
-  const [trackData, setTrackData] = useState(null);
   const [progress, setProgress] = useState(0);
-  const fileRef = useRef(null);
 
   // Splash animation
   useEffect(() => {
