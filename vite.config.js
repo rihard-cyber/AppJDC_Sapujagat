@@ -6,7 +6,7 @@ export default defineConfig({
   base: '/SMP-JDC/',
   plugins: [react()],
   build: {
-    outDir: 'dist'
+    outDir: 'docs'
   },
   server: {
     port: 3000,
