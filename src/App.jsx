@@ -12,7 +12,9 @@ import {
   X,
   BookOpen,
   UserPlus,
-  Users
+  Users,
+  Sun,
+  Moon
 } from 'lucide-react';
 import ManagementDashboard from './components/ManagementDashboard';
 import SecurityPatrolApp from './components/SecurityPatrolApp';
@@ -166,6 +168,15 @@ export default function App() {
       clearTimeout(timer);
     };
   }, [showSplash]);
+
+  const [theme, setTheme] = useState(() => localStorage.getItem('smpjdc_theme') || 'dark');
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('smpjdc_theme', next);
+      return next;
+    });
+  };
 
   const [users, setUsers] = useState(() => {
     try {
@@ -492,7 +503,7 @@ export default function App() {
   }
 
   return (
-    <div className="dashboard-layout">
+    <div className={`dashboard-layout theme-${theme}`}>
       {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />}
 
       <aside className={`sidebar ${isSidebarOpen ? 'sidebar-open' : ''}`}>
@@ -590,6 +601,10 @@ export default function App() {
             <Building size={14} />
             <span>SMPJDC - Jakarta Design Center</span>
           </div>
+          <button onClick={toggleTheme} className="theme-toggle-btn" title={`Mode ${theme === 'dark' ? 'Terang' : 'Gelap'}`}>
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            <span>{theme === 'dark' ? 'Mode Terang' : 'Mode Gelap'}</span>
+          </button>
           <div className="sidebar-footer-copy">
             © 2026 SMPJDC By_RichardMeha.
           </div>

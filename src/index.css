@@ -676,6 +676,70 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 
+/* ============================================================
+   LIGHT THEME — override variables via .theme-light class
+   ============================================================ */
+.theme-light {
+  --bg-primary: #f1f5f9;
+  --bg-secondary: #e2e8f0;
+  --bg-tertiary: #cbd5e1;
+  --bg-glass: rgba(255, 255, 255, 0.75);
+  --border-glass: rgba(0, 0, 0, 0.1);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --shadow-premium: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+}
+.theme-light .glass-panel {
+  background: var(--bg-glass);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+.theme-light .glass-panel:hover {
+  border-color: rgba(59, 130, 246, 0.25);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+}
+.theme-light .sidebar {
+  background: #ffffff;
+  border-right: 1px solid var(--border-glass);
+}
+.theme-light .sidebar-brand p { color: var(--text-muted); }
+.theme-light .sidebar-user { border-color: var(--border-glass); }
+.theme-light .nav-tab-btn { color: var(--text-secondary); }
+.theme-light .nav-tab-btn:hover { background: #f1f5f9; color: #0f172a; }
+.theme-light .nav-tab-btn.active { background: rgba(59, 130, 246, 0.08); color: var(--color-primary); }
+.theme-light .btn-logout { color: var(--text-secondary); }
+.theme-light .btn-logout:hover { background: #fee2e2; color: var(--color-danger); }
+.theme-light .global-header { background: rgba(255, 255, 255, 0.85); border-bottom-color: var(--border-glass); }
+.theme-light .header-user-badge { background: #f1f5f9; color: var(--text-secondary); }
+.theme-light .theme-toggle-btn { color: var(--text-secondary); }
+.theme-light .theme-toggle-btn:hover { background: #e2e8f0; color: var(--text-primary); }
+.theme-light .sidebar-footer { border-top-color: var(--border-glass); }
+.theme-light .sidebar-footer-copy { color: var(--text-muted); }
+.theme-light .finding-card-actions { border-top-color: rgba(0, 0, 0, 0.06); }
+.theme-light .modal-keterangan { background: rgba(0, 0, 0, 0.04); }
+
+/* Theme toggle button */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-secondary);
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  width: 100%;
+  transition: var(--transition-smooth);
+}
+.theme-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border-color: var(--color-primary);
+}
+
 /* Splash Screen Styles - Movie Cyber HUD Style */
 .splash-screen.cyber-screen {
   position: fixed;
