@@ -706,10 +706,6 @@ h1, h2, h3, h4, h5, h6 {
     flex-shrink: 0;
   }
 
-  .bottom-nav {
-    display: flex;
-  }
-
   .main-content {
     padding-bottom: calc(2.5rem + 72px);
   }
@@ -809,6 +805,13 @@ h1, h2, h3, h4, h5, h6 {
 
 .theme-light .bottom-nav-menu {
   border-left-color: var(--border-glass);
+}
+
+/* Show bottom nav on mobile */
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: flex;
+  }
 }
 
 /* ============================================================
