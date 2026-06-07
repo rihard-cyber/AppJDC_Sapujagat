@@ -282,24 +282,27 @@ export default function App() {
         return parsed;
       }
 
-      // Version mismatch — filter out old default seed users to prevent duplicates/conflicts
-      const oldSeedNrps = ['10001', '10002', '10003', '20001', '20002', '20003', '20004', '20005', '20006', '20007', '21001', '21002'];
+      // Version mismatch — merge seed users into existing, preserving modifications
       const userList = Array.isArray(parsed) ? parsed : [];
-      const customUsers = userList.filter(u => u.id > 12 && !oldSeedNrps.includes(u.nrp));
+      const existingMap = {};
+      userList.forEach(u => { existingMap[u.nrp] = u; });
 
-      // Re-seed all default users
+      // Add/update seed users only if they don't already exist (by NRP)
+      // This preserves dashboard edits made to regu members
       SEED_USERS.forEach(su => {
-        localStorage.setItem(`smpjdc_pin_${su.id}`, hashPin(su.pin));
+        if (!existingMap[su.nrp]) {
+          const clean = { ...su };
+          delete clean.pin;
+          existingMap[su.nrp] = clean;
+        }
+        // Only set default PIN if user has no PIN hash yet
+        const existingPin = localStorage.getItem(`smpjdc_pin_${su.id}`);
+        if (!existingPin || existingPin === '') {
+          localStorage.setItem(`smpjdc_pin_${su.id}`, hashPin(su.pin));
+        }
       });
 
-      const merged = [
-        ...SEED_USERS.map(u => {
-          const clean = { ...u };
-          delete clean.pin;
-          return clean;
-        }),
-        ...customUsers
-      ];
+      const merged = Object.values(existingMap);
 
       localStorage.setItem('sapujagat_users', JSON.stringify(merged));
       localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
