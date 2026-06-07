@@ -51,23 +51,20 @@ import ComplaintAdmin from './components/ComplaintAdmin';
 
 const INITIAL_USERS = [];
 const DB_VERSION_KEY = 'smpjdc_db_version';
-const CURRENT_DB_VERSION = '3.1-rileas';
+const CURRENT_DB_VERSION = '3.2-rileas';
 
 const SEED_USERS = [
   { id: 1, nama: 'Richard', nrp: '10001', jabatan: 'Admin Super', regu: '-', pin: '@Meha1122', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&fit=crop' },
   { id: 2, nama: 'Pak Kusnan', nrp: '10002', jabatan: 'Manajemen', regu: '-', pin: '0002', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&fit=crop' },
   { id: 3, nama: 'Agus Siraitin', nrp: '10003', jabatan: 'SPV', regu: '-', pin: '0003', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&fit=crop' },
-  // Regu A
-  { id: 4, nama: 'Andi Pratama', nrp: '20001', jabatan: 'Danru', regu: 'Regu A', pin: '0001', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&fit=crop' },
-  { id: 5, nama: 'Budi Santoso', nrp: '20002', jabatan: 'Anggota', regu: 'Regu A', pin: '0002', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80&fit=crop' },
-  { id: 6, nama: 'Candra Wijaya', nrp: '20003', jabatan: 'Anggota', regu: 'Regu A', pin: '0003', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&fit=crop' },
-  { id: 7, nama: 'Dedi Kurniawan', nrp: '20004', jabatan: 'Anggota', regu: 'Regu A', pin: '0004', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&fit=crop' },
-  { id: 8, nama: 'Eko Saputra', nrp: '20005', jabatan: 'Anggota', regu: 'Regu A', pin: '0005', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&fit=crop' },
-  { id: 9, nama: 'Fajar Nugroho', nrp: '20006', jabatan: 'Anggota', regu: 'Regu A', pin: '0006', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&fit=crop' },
-  { id: 10, nama: 'Doni Setiawan', nrp: '20007', jabatan: 'Anggota', regu: 'Regu A', pin: '0007', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&fit=crop' },
-  // Regu B
-  { id: 11, nama: 'Agus Hendraya', nrp: '21001', jabatan: 'Danru', regu: 'Regu B', pin: '0008', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&fit=crop' },
-  { id: 12, nama: 'Suparlan', nrp: '21002', jabatan: 'Anggota', regu: 'Regu B', pin: '0009', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&fit=crop' }
+  { id: 4, nama: 'Wahyudi', nrp: '20001', jabatan: 'Danru', regu: 'Regu A', pin: '0001', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&fit=crop' },
+  { id: 5, nama: 'Faizal Tanjung', nrp: '20002', jabatan: 'Wadanru', regu: 'Regu A', pin: '0002', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80&fit=crop' },
+  { id: 6, nama: 'Agus Hendraya', nrp: '20003', jabatan: 'Danru', regu: 'Regu B', pin: '0003', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=80&fit=crop' },
+  { id: 7, nama: 'Suparlan', nrp: '20004', jabatan: 'Wadanru', regu: 'Regu B', pin: '0004', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&fit=crop' },
+  { id: 8, nama: 'Sutrijono', nrp: '20005', jabatan: 'Danru', regu: 'Regu C', pin: '0005', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&fit=crop' },
+  { id: 9, nama: 'Dedy K', nrp: '20006', jabatan: 'Wadanru', regu: 'Regu C', pin: '0006', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&fit=crop' },
+  { id: 10, nama: 'M. Iqbal', nrp: '20007', jabatan: 'Danru', regu: 'Regu D', pin: '0007', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&fit=crop' },
+  { id: 11, nama: 'Dimas Pratama Putra', nrp: '20008', jabatan: 'Wadanru', regu: 'Regu D', pin: '0008', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80&fit=crop' }
 ];
 
 const INITIAL_AREAS = [
@@ -285,26 +282,25 @@ export default function App() {
         return parsed;
       }
 
-      // Version mismatch — merge seed users into existing, don't wipe UI-added users
-      const existingMap = {};
-      if (Array.isArray(parsed)) {
-        parsed.forEach(u => { existingMap[u.nrp] = u; });
-      }
+      // Version mismatch — filter out old default seed users to prevent duplicates/conflicts
+      const oldSeedNrps = ['10001', '10002', '10003', '20001', '20002', '20003', '20004', '20005', '20006', '20007', '21001', '21002'];
+      const userList = Array.isArray(parsed) ? parsed : [];
+      const customUsers = userList.filter(u => u.id > 12 && !oldSeedNrps.includes(u.nrp));
 
+      // Re-seed all default users
       SEED_USERS.forEach(su => {
-        if (existingMap[su.nrp]) {
-          existingMap[su.nrp] = { ...su, ...existingMap[su.nrp] };
-        } else {
-          existingMap[su.nrp] = su;
-        }
         localStorage.setItem(`smpjdc_pin_${su.id}`, hashPin(su.pin));
       });
 
-      const merged = Object.values(existingMap).map(u => {
-        const clean = { ...u };
-        delete clean.pin;
-        return clean;
-      });
+      const merged = [
+        ...SEED_USERS.map(u => {
+          const clean = { ...u };
+          delete clean.pin;
+          return clean;
+        }),
+        ...customUsers
+      ];
+
       localStorage.setItem('sapujagat_users', JSON.stringify(merged));
       localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
       return merged;
