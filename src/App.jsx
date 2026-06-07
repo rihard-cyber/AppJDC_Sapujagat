@@ -189,6 +189,7 @@ export default function App() {
             setCurrentUser(found);
             setAuthenticated(true);
             setShowSplash(true);
+            setCurrentTab(['Danru', 'Wadanru', 'Anggota'].includes(found.jabatan) ? 'guard-simulator' : 'dashboard');
             return;
           }
         }
