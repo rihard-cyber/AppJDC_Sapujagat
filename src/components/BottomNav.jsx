@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   LayoutDashboard,
   Target,
@@ -12,7 +12,7 @@ import {
 
 export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, user }) {
   const [visible, setVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollY = useRef(0);
 
   useEffect(() => {
     let ticking = false;
@@ -20,7 +20,7 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const currentScrollY = window.scrollY;
-          const delta = currentScrollY - lastScrollY;
+          const delta = currentScrollY - lastScrollY.current;
 
           if (Math.abs(delta) > 10) {
             if (delta > 0 && currentScrollY > 60) {
@@ -28,7 +28,7 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
             } else if (delta < 0) {
               setVisible(true);
             }
-            setLastScrollY(currentScrollY);
+            lastScrollY.current = currentScrollY;
           }
           ticking = false;
         });
@@ -38,9 +38,10 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
   const isGuard = ['Danru', 'Wadanru', 'Anggota'].includes(user?.jabatan);
+  const isDanruWadanru = ['Danru', 'Wadanru'].includes(user?.jabatan);
   const isGuest = user?.jabatan === 'Guest Viewer';
 
   const getItems = () => {
@@ -51,13 +52,20 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
       ];
     }
     if (isGuard) {
-      return [
+      const items = [
         { id: 'guard-simulator', label: 'Patroli', icon: Smartphone },
-        { id: 'absensi', label: 'Absensi', icon: ClipboardList },
-        { id: 'mutasi', label: 'Mutasi', icon: BookOpen },
+      ];
+      if (isDanruWadanru) {
+        items.push(
+          { id: 'absensi', label: 'Absensi', icon: ClipboardList },
+          { id: 'mutasi', label: 'Mutasi', icon: BookOpen },
+        );
+      }
+      items.push(
         { id: 'lapor', label: 'Lapor', icon: FileText },
         { id: null, label: 'Menu', icon: Menu, isMenu: true },
-      ];
+      );
+      return items;
     }
     return [
       { id: 'dashboard', label: 'Beranda', icon: LayoutDashboard },
