@@ -1,3 +1,14 @@
+/**
+ * =======================================================
+ *   SMPJDC SECURITY MANAGEMENT SYSTEM
+ *   Module: Barcode & Checkpoint Generator
+ *   Signed by: Richard Meha (by -Richard)
+ *   Last Maintained: 2026-06-07
+ *   Description: Master area checkpoint registration, QR sticker
+ *                bulk printing (iframe) and blob downloading.
+ * =======================================================
+ */
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { 
   Plus, 
@@ -132,55 +143,265 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
     setTitik('');
   };
 
-  const handleDownloadQR = (area) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 250, 290);
-    ctx.strokeStyle = '#0b0f19';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(15, 15, 220, 220);
-    ctx.fillStyle = '#0b0f19';
-    ctx.fillRect(25, 25, 45, 45);
-    ctx.fillRect(180, 25, 45, 45);
-    ctx.fillRect(25, 180, 45, 45);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(35, 35, 25, 25);
-    ctx.fillRect(190, 35, 25, 25);
-    ctx.fillRect(35, 190, 25, 25);
-    ctx.fillStyle = '#0b0f19';
-    ctx.fillRect(42, 42, 11, 11);
-    ctx.fillRect(197, 42, 11, 11);
-    ctx.fillRect(42, 197, 11, 11);
-    ctx.fillStyle = '#0b0f19';
-    for (let x = 80; x < 170; x += 10) {
-      for (let y = 30; y < 220; y += 10) {
-        if (Math.random() > 0.5) ctx.fillRect(x, y, 7, 7);
-      }
+  const handleDownloadQR = async (area) => {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(area.qrCode)}`;
+    
+    try {
+      // 1. Fetch image as blob
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      
+      // 2. Create local object URL
+      const objectUrl = URL.createObjectURL(blob);
+      const img = new Image();
+      
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas with white background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 250, 290);
+        
+        // Draw barcode
+        ctx.drawImage(img, 25, 20, 200, 200);
+        
+        // Labels
+        ctx.fillStyle = '#0b0f19';
+        ctx.font = 'bold 12px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(area.qrCode, 125, 235);
+        
+        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 10px Inter, sans-serif';
+        ctx.fillText(area.titik, 125, 253);
+        
+        ctx.fillStyle = '#64748b';
+        ctx.font = '8px Inter, sans-serif';
+        ctx.fillText(`${area.gedung} - ${['1','2','3','4','5','6'].includes(area.lantai) ? `Lt. ${area.lantai}` : area.lantai} (${area.zona})`, 125, 270);
+        
+        try {
+          const dataUrl = canvas.toDataURL('image/png');
+          const link = document.createElement('a');
+          link.download = `${area.qrCode}.png`;
+          link.href = dataUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } catch (err) {
+          console.error('Canvas export failed:', err);
+          // Fallback to raw QR download
+          const fallbackLink = document.createElement('a');
+          fallbackLink.download = `${area.qrCode}.png`;
+          fallbackLink.href = objectUrl;
+          document.body.appendChild(fallbackLink);
+          fallbackLink.click();
+          document.body.removeChild(fallbackLink);
+        }
+        
+        URL.revokeObjectURL(objectUrl);
+      };
+      
+      img.onerror = () => {
+        const fallbackLink = document.createElement('a');
+        fallbackLink.download = `${area.qrCode}.png`;
+        fallbackLink.href = objectUrl;
+        document.body.appendChild(fallbackLink);
+        fallbackLink.click();
+        document.body.removeChild(fallbackLink);
+      };
+      
+      img.src = objectUrl;
+      
+    } catch (err) {
+      console.error('Fetch QR code failed:', err);
+      // Fallback: raw api link
+      const link = document.createElement('a');
+      link.download = `${area.qrCode}.png`;
+      link.href = qrUrl;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
-    for (let x = 30; x < 80; x += 10) {
-      for (let y = 80; y < 170; y += 10) {
-        if (Math.random() > 0.5) ctx.fillRect(x, y, 7, 7);
-      }
+  };
+
+  const handlePrintQR = (area) => {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(area.qrCode)}`;
+    
+    // Remove existing print iframe
+    const oldFrame = document.getElementById('smpjdc-print-iframe');
+    if (oldFrame) oldFrame.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'smpjdc-print-iframe';
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <html>
+        <head>
+          <title>Cetak QR Checkpoint - ${area.qrCode}</title>
+          <style>
+            body {
+              font-family: 'Inter', sans-serif;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              padding: 20px;
+              box-sizing: border-box;
+              text-align: center;
+              color: #0b0f19;
+            }
+            .qr-card {
+              border: 3px double #0b0f19;
+              padding: 25px;
+              border-radius: 12px;
+              display: inline-block;
+              background: #fff;
+            }
+            img {
+              width: 280px;
+              height: 280px;
+              margin-bottom: 15px;
+            }
+            h2 {
+              margin: 0 0 5px 0;
+              font-size: 22px;
+              letter-spacing: 1px;
+            }
+            p {
+              margin: 0;
+              font-size: 14px;
+              color: #555;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="qr-card">
+            <img src="${qrUrl}" alt="QR Checkpoint" onload="window.focus(); setTimeout(function(){ window.print(); }, 400);" />
+            <h2>${area.qrCode}</h2>
+            <p style="font-weight: bold; margin-bottom: 4px;">${area.titik}</p>
+            <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+  };
+
+  const handlePrintAllQRs = () => {
+    if (areas.length === 0) {
+      alert('Tidak ada master area untuk dicetak!');
+      return;
     }
-    for (let x = 170; x < 220; x += 10) {
-      for (let y = 80; y < 170; y += 10) {
-        if (Math.random() > 0.5) ctx.fillRect(x, y, 7, 7);
-      }
-    }
-    ctx.fillStyle = '#0b0f19';
-    ctx.font = 'bold 10px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(area.qrCode, 125, 255);
-    ctx.fillStyle = '#64748b';
-    ctx.font = '9px Inter, sans-serif';
-    ctx.fillText(`${area.gedung} - ${['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'].includes(area.lantai) ? `Lantai ${area.lantai}` : area.lantai} (${area.zona})`, 125, 275);
-    const dataUrl = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = `${area.qrCode}.png`;
-    link.href = dataUrl;
-    link.click();
+    
+    // Remove existing print iframe
+    const oldFrame = document.getElementById('smpjdc-print-iframe');
+    if (oldFrame) oldFrame.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'smpjdc-print-iframe';
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    
+    let htmlContent = `
+      <html>
+        <head>
+          <title>Cetak Semua QR Checkpoint SMPJDC</title>
+          <style>
+            body {
+              font-family: 'Inter', sans-serif;
+              margin: 0;
+              padding: 0;
+              background: #fff;
+              color: #0b0f19;
+            }
+            .print-page {
+              page-break-after: always;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              box-sizing: border-box;
+              text-align: center;
+              padding: 40px;
+            }
+            .qr-card {
+              border: 4px double #0b0f19;
+              padding: 30px;
+              border-radius: 16px;
+              display: inline-block;
+              background: #fff;
+            }
+            img {
+              width: 320px;
+              height: 320px;
+              margin-bottom: 20px;
+            }
+            h2 {
+              margin: 0 0 8px 0;
+              font-size: 26px;
+              letter-spacing: 1px;
+            }
+            p {
+              margin: 0;
+              font-size: 16px;
+              color: #444;
+            }
+            .print-page:last-child {
+              page-break-after: avoid;
+            }
+          </style>
+        </head>
+        <body>
+    `;
+    
+    areas.forEach(area => {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(area.qrCode)}`;
+      htmlContent += `
+        <div class="print-page">
+          <div class="qr-card">
+            <img src="${qrUrl}" alt="QR Checkpoint" />
+            <h2>${area.qrCode}</h2>
+            <p style="font-weight: bold; margin-bottom: 5px;">${area.titik}</p>
+            <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
+          </div>
+        </div>
+      `;
+    });
+    
+    htmlContent += `
+          <script>
+            window.onload = function() {
+              window.focus();
+              setTimeout(function() {
+                window.print();
+              }, 1200);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+    
+    doc.write(htmlContent);
+    doc.close();
   };
 
   const handleBulkGenerate = () => {
@@ -406,17 +627,22 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
 
         {/* 3. MASTER AREA LIST VIEW */}
         <div className="glass-panel grid-span-3 panel-body">
-          <h3 className="section-title">
-            <Building size={18} className="text-primary" style={{ flexShrink: 0 }} />
-            <span>Daftar Master Area Aktif SMPJDC ({areas.length})</span>
-          </h3>
+          <div className="flex-between" style={{ marginBottom: '1.25rem', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <h3 className="section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Building size={18} className="text-primary" style={{ flexShrink: 0 }} />
+              <span>Daftar Master Area Aktif SMPJDC ({areas.length})</span>
+            </h3>
+            <button type="button" onClick={handlePrintAllQRs} className="btn-primary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto' }}>
+              <Printer size={14} /> Cetak Semua Barcode QR
+            </button>
+          </div>
 
           <div className="table-wrap">
             <table className="table-data">
               <thead>
                 <tr>
                   <th>Lantai</th><th>No. Titik</th><th>Zona</th>
-                  <th>Lokasi</th><th>QR Code</th><th style={{ textAlign: 'right' }}>Download</th>
+                  <th>Lokasi</th><th>QR Code</th><th style={{ textAlign: 'right' }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -437,7 +663,7 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser })
                     <td style={{ textAlign: 'right' }}>
                       <div className="btn-group" style={{ justifyContent: 'flex-end' }}>
                         <button onClick={() => handleDownloadQR(area)} title="Download Barcode PNG" className="btn-icon-primary"><Download size={14} /></button>
-                        <button onClick={() => alert(`🖨️ Mengirim berkas cetak QR ${area.qrCode} ke printer antrean.`)} title="Cetak Stiker Barcode" className="btn-icon"><Printer size={14} /></button>
+                        <button onClick={() => handlePrintQR(area)} title="Cetak Stiker Barcode" className="btn-icon"><Printer size={14} /></button>
                       </div>
                     </td>
                   </tr>

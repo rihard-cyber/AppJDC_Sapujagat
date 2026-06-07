@@ -1,5 +1,17 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * =======================================================
+ *   SMPJDC SECURITY MANAGEMENT SYSTEM
+ *   Module: Tenant Complaint Form (Form Komplain)
+ *   Signed by: Richard Meha (by -Richard)
+ *   Last Maintained: 2026-06-07
+ *   Description: Tenant request submission form with built-in
+ *                image compressor and ticket tracking system.
+ * =======================================================
+ */
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Send, Camera, User, Building, MapPin, FileText, AlertTriangle, CheckCircle, X, QrCode, ChevronRight } from 'lucide-react';
+import { compressImage } from '../utils/image';
 
 const CATEGORIES = [
   { id: 'Fasilitas', label: 'Fasilitas', icon: Building, color: '#3b82f6' },
@@ -31,6 +43,9 @@ export default function ComplaintForm({ onAddComplaint }) {
   const [trackId, setTrackId] = useState('');
   const [trackData, setTrackData] = useState(null);
 
+  // Ref ke hidden file input untuk kamera Android
+  const photoInputRef = useRef(null);
+
   // Splash animation
   useEffect(() => {
     if (step !== 'splash') return;
@@ -42,19 +57,24 @@ export default function ComplaintForm({ onAddComplaint }) {
   }, [step]);
 
   const handlePhotoCapture = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.multiple = true;
-    input.onchange = (e) => {
-      const files = Array.from(e.target.files);
-      files.forEach(f => {
-        const reader = new FileReader();
-        reader.onloadend = () => setPhotos(prev => [...prev, reader.result]);
-        reader.readAsDataURL(f);
-      });
-    };
-    input.click();
+    if (photoInputRef.current) {
+      photoInputRef.current.value = '';
+      photoInputRef.current.click();
+    }
+  };
+
+  const handlePhotoChange = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(f => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        compressImage(reader.result).then(compressed => {
+          setPhotos(prev => [...prev, compressed]);
+        });
+      };
+      reader.readAsDataURL(f);
+    });
+    e.target.value = '';
   };
 
   const removePhoto = (idx) => setPhotos(prev => prev.filter((_, i) => i !== idx));
@@ -391,9 +411,21 @@ export default function ComplaintForm({ onAddComplaint }) {
               </div>
             )}
             {photos.length < 3 && (
-              <button type="button" onClick={handlePhotoCapture} className="btn-secondary" style={{ padding: '0.45rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem', width: 'fit-content' }}>
-                <Camera size={14} /> {photos.length > 0 ? 'Tambah Foto' : 'Ambil / Upload Foto'}
-              </button>
+              <>
+                {/* Hidden file input — dikontrol via ref agar kompatibel dengan Android WebView */}
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  multiple
+                  onChange={handlePhotoChange}
+                  style={{ display: 'none' }}
+                />
+                <button type="button" onClick={handlePhotoCapture} className="btn-secondary" style={{ padding: '0.45rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem', width: 'fit-content' }}>
+                  <Camera size={14} /> {photos.length > 0 ? 'Tambah Foto' : 'Ambil / Upload Foto'}
+                </button>
+              </>
             )}
           </div>
 

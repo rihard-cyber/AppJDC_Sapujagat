@@ -1,3 +1,14 @@
+/**
+ * =======================================================
+ *   SMPJDC SECURITY MANAGEMENT SYSTEM
+ *   Module: Security & Anti-Fraud Utilities
+ *   Signed by: Richard Meha (by -Richard)
+ *   Last Maintained: 2026-06-07
+ *   Description: Anti-fraud token generation, hashing PINs,
+ *                and native Geolocation bridge handlers.
+ * =======================================================
+ */
+
 // Simple hash for PIN (not crypto-grade, prevents casual reading via DevTools)
 export function hashPin(pin) {
   let hash = 0;
@@ -107,4 +118,62 @@ export function migratePins(users) {
     }
   });
   return changed;
+}
+
+// Fetch real GPS Coordinates via standard Geolocation API
+export function getGPSCoordinates() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      console.warn('Geolocation not supported by this browser/webview');
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        });
+      },
+      (error) => {
+        console.warn('GPS Coordinate Fetch Error:', error);
+        resolve(null);
+      },
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+    );
+  });
+}
+
+// Generate the complete anti-fraud audit record
+export async function generateAntiFraudData(userId) {
+  const coords = await getGPSCoordinates();
+  const userAgent = navigator.userAgent;
+  
+  // Clean up device names for easier viewing in logs
+  let device = 'Web Browser';
+  if (/android/i.test(userAgent)) {
+    const match = userAgent.match(/Android\s+([^\s;]+)(?:;\s+([^\s;)]+))?/);
+    device = match ? `Android ${match[1]} (${match[2] || 'Capacitor WebView'})` : 'Android Device';
+  } else if (/iphone|ipad|ipod/i.test(userAgent)) {
+    device = 'iOS Device';
+  }
+  
+  // Generate secure verification token based on timestamp, user, and coordinates
+  const rawToken = `token_${userId}_${Date.now()}_${coords ? coords.latitude : 'no_gps'}`;
+  let hash = 0;
+  for (let i = 0; i < rawToken.length; i++) {
+    hash = ((hash << 5) - hash) + rawToken.charCodeAt(i);
+    hash |= 0;
+  }
+  const dynamicToken = 'SEC-' + Math.abs(hash).toString(16).toUpperCase();
+
+  return {
+    gpsValid: coords !== null,
+    coords: coords,
+    radius: coords ? Math.floor(Math.random() * 15) + 5 : null, // 5-20 meters (simulation within checkpoint)
+    device,
+    ip: '192.168.1.' + (Math.floor(Math.random() * 254) + 1), // simulated local JDC IP
+    dynamicToken
+  };
 }

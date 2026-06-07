@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Clock, MapPin, FileText, Camera, Send, History, Trash2, Info, Search, AlertTriangle, Wrench, Radio, X } from 'lucide-react';
+import { compressImage } from '../utils/image';
 
 const KATEGORI_MUTASI = [
   { id: 'informasi', label: 'Informasi', icon: Info, color: '#3b82f6' },
@@ -108,7 +109,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
             <div className="step-field">
               <label>LAMPIRAN FOTO (OPSIONAL)</label>
               {foto ? <div className="photo-preview"><img src={foto} alt="" /><button type="button" onClick={() => setFoto(null)} className="photo-remove">X</button></div>
-                : <label className="photo-upload-btn"><Camera size={16} /> Ambil Foto<input type="file" accept="image/*" onChange={e => { const f=e.target.files[0]; if(f){const r=new FileReader(); r.onloadend=()=>setFoto(r.result); r.readAsDataURL(f)} }} hidden /></label>}
+                : <label className="photo-upload-btn"><Camera size={16} /> Ambil Foto<input type="file" accept="image/*" capture="environment" onChange={e => { const f=e.target.files[0]; if(f){const r=new FileReader(); r.onloadend=()=> { compressImage(r.result).then(compressed => setFoto(compressed)); }; r.readAsDataURL(f)} e.target.value=''; }} hidden /></label>}
             </div>
             
             <button type="submit" className="btn-primary btn-full" style={{ padding: '0.65rem' }}><Send size={16} /> Catat Ke Mutasi</button>

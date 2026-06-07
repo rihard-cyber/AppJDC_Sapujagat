@@ -1,3 +1,14 @@
+/**
+ * =======================================================
+ *   SMPJDC SECURITY MANAGEMENT SYSTEM
+ *   Module: Security Patrol Mobile App (Simulation)
+ *   Signed by: Richard Meha (by -Richard)
+ *   Last Maintained: 2026-06-07
+ *   Description: Mobile UI simulation for security officers, 
+ *                html5-qrcode integration, GPS anti-fraud.
+ * =======================================================
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   Camera, Clock, Check, AlertTriangle, QrCode, Shield,
@@ -5,6 +16,9 @@ import {
   FileText, History, Send, Info, Search, Wrench, Radio, X
 } from 'lucide-react';
 import KATEGORI_TEMUAN from '../data/kategoriTemuan';
+import { Html5Qrcode } from 'html5-qrcode';
+import { getGPSCoordinates, generateAntiFraudData } from '../utils/security';
+import { compressImage } from '../utils/image';
 
 const KATEGORI_MUTASI = [
   { id: 'informasi', label: 'Informasi', icon: Info, color: '#3b82f6' },
@@ -23,7 +37,13 @@ export default function SecurityPatrolApp({
     try { return JSON.parse(localStorage.getItem('sapujagat_offline_queue')) || []; }
     catch { return []; }
   });
-  useEffect(() => { localStorage.setItem('sapujagat_offline_queue', JSON.stringify(queue)); }, [queue]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('sapujagat_offline_queue', JSON.stringify(queue));
+    } catch (e) {
+      console.error('Gagal menyimpan antrean offline ke localStorage:', e);
+    }
+  }, [queue]);
   useEffect(() => { if (online && queue.length > 0) { queue.forEach(r => onAddReport(r)); setQueue([]); } }, [online]);
 
   const [tab, setTab] = useState('patroli');
@@ -41,6 +61,70 @@ export default function SecurityPatrolApp({
   const [deskripsi, setDeskripsi] = useState('');
   const [foto, setFoto] = useState(null);
   const [scanError, setScanError] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
+
+  // Trigger early Geolocation permissions and warm up GPS coordinates
+  useEffect(() => {
+    if (step === 2) {
+      setScanning(true);
+      getGPSCoordinates().then(coords => {
+        console.log('GPS coordinates pre-fetched and warmed up:', coords);
+      });
+    } else {
+      setScanning(false);
+    }
+  }, [step]);
+
+  // Live Camera Scanner Lifecycle using html5-qrcode
+  useEffect(() => {
+    let html5QrCode;
+    const elementId = "reader";
+    
+    if (scanning && step === 2) {
+      setScanLoading(true);
+      setScanError('');
+      
+      const timer = setTimeout(() => {
+        try {
+          html5QrCode = new Html5Qrcode(elementId);
+          html5QrCode.start(
+            { facingMode: "environment" },
+            {
+              fps: 10,
+              qrbox: { width: 220, height: 220 }
+            },
+            (decodedText) => {
+              handleBarcodeScannedSuccessfully(decodedText);
+              if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => console.error(err));
+              }
+            },
+            () => {
+              // scanning...
+            }
+          ).then(() => {
+            setScanLoading(false);
+          }).catch(err => {
+            console.warn("Kamera scanner gagal aktif:", err);
+            setScanLoading(false);
+            setScanError(`Gagal akses kamera: ${err.message || err}. Pastikan izin kamera telah diberikan.`);
+          });
+        } catch (e) {
+          console.error("Html5Qrcode scanner failed to initialize:", e);
+          setScanLoading(false);
+          setScanError(`Scanner Error: ${e.message || e}`);
+        }
+      }, 300);
+
+      return () => {
+        clearTimeout(timer);
+        if (html5QrCode && html5QrCode.isScanning) {
+          html5QrCode.stop().catch(err => console.error(err));
+        }
+      };
+    }
+  }, [scanning, step]);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayLog = attendanceLogs.find(log => log.tanggal === todayStr);
@@ -65,14 +149,58 @@ export default function SecurityPatrolApp({
     setBarcodeInput(''); setScanError('');
   };
 
-  const handleBarcodeScan = () => {
-    const val = barcodeInput.trim();
-    if (!val) return;
+  const playBeepSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1200, audioCtx.currentTime); // 1200Hz Beep
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.12); // Beep duration 120ms
+    } catch (e) {
+      console.warn('Gagal memutar bip suara:', e);
+    }
+  };
+
+  const handleBarcodeScannedSuccessfully = (val) => {
+    let cleanVal = val.trim();
+    if (!cleanVal) return;
+
+    // Smart URL Parsing: Ekstrak parameter query jika QR code berisi URL lengkap
+    if (cleanVal.startsWith('http://') || cleanVal.startsWith('https://')) {
+      try {
+        const urlObj = new URL(cleanVal);
+        const checkpointParam = urlObj.searchParams.get('checkpoint') || 
+                                urlObj.searchParams.get('code') || 
+                                urlObj.searchParams.get('id');
+        
+        if (checkpointParam) {
+          cleanVal = checkpointParam.trim();
+        } else {
+          // Fallback ke segment path terakhir
+          const pathSegments = urlObj.pathname.split('/').filter(Boolean);
+          if (pathSegments.length > 0) {
+            cleanVal = pathSegments[pathSegments.length - 1].trim();
+          }
+        }
+      } catch (e) {
+        console.warn('Gagal memproses QR URL:', e);
+      }
+    }
+
+    // Cari area berdasarkan kecocokan case-insensitive atau jika kode terdeteksi di dalam string QR
     const found = areas.find(a =>
-      a.qrCode.toLowerCase() === val.toLowerCase() ||
-      a.id.toLowerCase() === val.toLowerCase()
+      a.qrCode.toLowerCase() === cleanVal.toLowerCase() ||
+      a.id.toLowerCase() === cleanVal.toLowerCase() ||
+      cleanVal.toLowerCase().includes(a.qrCode.toLowerCase())
     );
+
     if (found) {
+      playBeepSound();
       setArea(found);
       setTimeScan(new Date());
       setBarcodeInput('');
@@ -83,36 +211,51 @@ export default function SecurityPatrolApp({
       setDeskripsi('');
       setFoto(null);
       setStep(3);
+      setScanning(false);
+      setScanError('');
     } else {
-      setScanError(`QR Code "${val}" tidak ditemukan. Periksa kode dan coba lagi.`);
+      setScanError(`QR Code "${cleanVal}" tidak terdaftar di checkpoint JDC.`);
+      // Sembunyikan error setelah 4 detik agar bisa mencoba scan ulang dengan nyaman
+      setTimeout(() => {
+        setScanError('');
+      }, 4000);
     }
   };
 
-  const handleNormal = () => {
+  const handleBarcodeScan = () => {
+    handleBarcodeScannedSuccessfully(barcodeInput);
+  };
+
+  const handleNormal = async () => {
+    const fraudData = await generateAntiFraudData(currentUser.id);
     const r = {
       timestamp: timeScan.toISOString(), timestampEnd: new Date().toISOString(),
       userId: currentUser.id, userName: currentUser.nama,
       areaId: area.id, gedung: 'JDC', lantai: area.lantai, zona: area.zona, titik: area.titik,
       shift, kategori: '-', kodeTemuan: '-', temuan: 'Normal', status: 'normal',
-      kondisi: 'Aman dan Kondusif', severity: 'Rendah', keterangan: '', foto: null
+      kondisi: 'Aman dan Kondusif', severity: 'Rendah', keterangan: '', foto: null,
+      antiFraud: fraudData
     };
     (online ? onAddReport(r) : setQueue(p => [...p, r]));
     setStep(4);
   };
 
-  const handleTemuanSubmit = (e) => {
+  const handleTemuanSubmit = async (e) => {
     e.preventDefault();
     if (!kategori || !temuan) return;
     const kat = kategoriData.find(k => k.id === kategori);
     const item = daftarTemuan.find(t => t.kode === temuan);
     const severityMap = { low: 'Rendah', medium: 'Sedang', high: 'Tinggi', critical: 'Kritis' };
+    
+    const fraudData = await generateAntiFraudData(currentUser.id);
     const r = {
       timestamp: timeScan.toISOString(), timestampEnd: new Date().toISOString(),
       userId: currentUser.id, userName: currentUser.nama,
       areaId: area.id, gedung: 'JDC', lantai: area.lantai, zona: area.zona, titik: area.titik,
       shift, kategori: kat?.nama || '', kodeTemuan: item?.kode || '', temuan: item?.nama || '',
       status: 'temuan', kondisi: item?.nama || 'Temuan', severity: severityMap[severity] || 'Rendah',
-      keterangan: deskripsi, foto
+      keterangan: deskripsi, foto,
+      antiFraud: fraudData
     };
     (online ? onAddReport(r) : setQueue(p => [...p, r]));
     setStep(4);
@@ -126,19 +269,22 @@ export default function SecurityPatrolApp({
   const [mErrors, setMErrors] = useState({});
   const [mSent, setMSent] = useState(false);
 
-  const handleMutasiSubmit = (e) => {
+  const handleMutasiSubmit = async (e) => {
     e.preventDefault();
     const errs = {};
     if (!mLokasi.trim()) errs.lokasi = 'Lokasi harus diisi';
     if (!mUraian.trim()) errs.uraian = 'Uraian harus diisi';
     if (Object.keys(errs).length) { setMErrors(errs); return; }
     setMErrors({});
+    
+    const fraudData = await generateAntiFraudData(currentUser.id);
     onAddLog({
       waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       jamKejadian: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       lokasi: mLokasi.trim(), uraian: mUraian.trim(), kategori: mKat,
       foto: mFoto, petugas: currentUser.nama, nrp: currentUser.nrp,
-      tanggal: todayStr, pelapor: currentUser.nama
+      tanggal: todayStr, pelapor: currentUser.nama,
+      antiFraud: fraudData
     });
     setMSent(true);
     setMLokasi(''); setMUraian(''); setMFoto(null);
@@ -249,23 +395,70 @@ export default function SecurityPatrolApp({
 
             {step === 2 && (
               <div className="step-scan">
-                <div className="scan-qr-area">
-                  <div className="scan-qr-icon"><QrCode size={48} /></div>
-                  <h3>Scan Barcode Checkpoint</h3>
-                  <p>Masukkan kode QR checkpoint atau pilih dari daftar.</p>
-                  <div className="step-field" style={{ marginTop: '0.5rem' }}>
-                    <label>KODE QR / BARCODE</label>
-                    <div className="scan-input-group">
-                      <input type="text" value={barcodeInput} onChange={e => { setBarcodeInput(e.target.value); setScanError(''); }}
-                        onKeyDown={e => e.key === 'Enter' && handleBarcodeScan()}
-                        placeholder="Cth: JDC-BSMT-B-1" className="modern-input" style={{ flex: 1 }} autoFocus />
-                      <button onClick={handleBarcodeScan} className="btn-primary" style={{ padding: '0.5rem 0.8rem', whiteSpace: 'nowrap' }}><QrCode size={15} /> Scan</button>
-                    </div>
-                    {scanError && <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)', marginTop: '0.2rem' }}>{scanError}</span>}
-                  </div>
+                <style>{`
+                  @keyframes scan-anim {
+                    0% { top: 10%; }
+                    50% { top: 90%; }
+                    100% { top: 10%; }
+                  }
+                  @keyframes spin {
+                    to { transform: rotate(360deg); }
+                  }
+                `}</style>
+                <div style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800 }}>Kamera Pemindai Checkpoint</h3>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Arahkan kamera ke QR Code checkpoint</p>
                 </div>
-                <div className="step-hint"><MapPin size={14} style={{ opacity: 0.5 }} /><span>Pilih dari daftar checkpoint:</span></div>
-                <div className="scan-area-compact-list">
+
+                {/* Video Scanner Container */}
+                <div style={{ position: 'relative', width: '100%', minHeight: '220px', borderRadius: '12px', overflow: 'hidden', background: '#090f1d', border: '2px solid rgba(59, 130, 246, 0.4)', boxShadow: '0 0 20px rgba(59, 130, 246, 0.25)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem' }}>
+                  <div id="reader" style={{ width: '100%', minHeight: '220px' }}></div>
+                  
+                  {scanning && !scanLoading && (
+                    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1rem', zIndex: 10 }}>
+                      <div style={{ position: 'absolute', top: 15, left: 15, width: 22, height: 22, borderTop: '4px solid #00f0ff', borderLeft: '4px solid #00f0ff' }}></div>
+                      <div style={{ position: 'absolute', top: 15, right: 15, width: 22, height: 22, borderTop: '4px solid #00f0ff', borderRight: '4px solid #00f0ff' }}></div>
+                      <div style={{ position: 'absolute', bottom: 15, left: 15, width: 22, height: 22, borderBottom: '4px solid #00f0ff', borderLeft: '4px solid #00f0ff' }}></div>
+                      <div style={{ position: 'absolute', bottom: 15, right: 15, width: 22, height: 22, borderBottom: '4px solid #00f0ff', borderRight: '4px solid #00f0ff' }}></div>
+                      
+                      {/* Laser Line */}
+                      <div className="cyber-scanner-line" style={{
+                        position: 'absolute', left: '10%', right: '10%', height: '3px',
+                        background: 'linear-gradient(90deg, transparent, #00f0ff, transparent)',
+                        boxShadow: '0 0 10px #00f0ff',
+                        animation: 'scan-anim 2.5s linear infinite'
+                      }}></div>
+                    </div>
+                  )}
+
+                  {scanLoading && (
+                    <div style={{ zIndex: 5, color: '#00f0ff', fontSize: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', position: 'absolute' }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '3px solid rgba(0,240,255,0.2)', borderTopColor: '#00f0ff', animation: 'spin 0.8s linear infinite' }}></div>
+                      <span style={{ fontWeight: 600 }}>Menghidupkan Kamera...</span>
+                    </div>
+                  )}
+
+                  {scanError && (
+                    <div style={{ position: 'absolute', bottom: 12, left: 12, right: 12, padding: '0.5rem', background: 'rgba(239, 68, 68, 0.95)', color: 'white', borderRadius: '8px', fontSize: '0.67rem', zIndex: 20, fontWeight: 700, textAlign: 'center', boxShadow: '0 4px 15px rgba(0,0,0,0.4)' }}>
+                      ⚠️ {scanError}
+                    </div>
+                  )}
+                </div>
+
+                {/* Fallback Manual Input */}
+                <div className="glass-panel" style={{ padding: '0.75rem', marginBottom: '0.75rem' }}>
+                  <label style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>INPUT MANUAL KODE BARCODE</label>
+                  <div className="scan-input-group">
+                    <input type="text" value={barcodeInput} onChange={e => { setBarcodeInput(e.target.value); setScanError(''); }}
+                      onKeyDown={e => e.key === 'Enter' && handleBarcodeScan()}
+                      placeholder="Cth: JDC-BSMT-B-1" className="modern-input" style={{ flex: 1, fontSize: '0.8rem' }} />
+                    <button onClick={handleBarcodeScan} className="btn-primary" style={{ padding: '0.4rem 0.8rem', whiteSpace: 'nowrap', fontSize: '0.75rem', fontWeight: 700 }}><QrCode size={13} /> Scan</button>
+                  </div>
+                  {scanError && <div style={{ fontSize: '0.65rem', color: 'var(--color-danger)', marginTop: '0.3rem', fontWeight: 600 }}>⚠️ {scanError}</div>}
+                </div>
+
+                <div className="step-hint" style={{ marginBottom: '0.4rem' }}><MapPin size={12} style={{ opacity: 0.5 }} /><span>Atau pilih lokasi langsung:</span></div>
+                <div className="scan-area-compact-list" style={{ maxHeight: '110px', overflowY: 'auto' }}>
                   {[...areas].sort((a, b) => {
                     const na = parseInt(a.nomorTitik, 10);
                     const nb = parseInt(b.nomorTitik, 10);
@@ -277,14 +470,15 @@ export default function SecurityPatrolApp({
                       setMode(null); setKategori(''); setTemuan('');
                       setSeverity('low'); setDeskripsi(''); setFoto(null);
                       setStep(3);
-                    }} className="scan-compact-item">
-                      <span className="scan-item-qr">{a.qrCode}</span>
-                      <span className="scan-item-name">{a.titik}</span>
-                      <span className="scan-item-floor">{['1','2','3','4','5','6'].includes(a.lantai) ? `Lt.${a.lantai}` : a.lantai}</span>
+                      setScanning(false);
+                    }} className="scan-compact-item" style={{ padding: '0.35rem 0.5rem' }}>
+                      <span className="scan-item-qr" style={{ fontSize: '0.62rem' }}>{a.qrCode}</span>
+                      <span className="scan-item-name" style={{ fontSize: '0.65rem' }}>{a.titik}</span>
+                      <span className="scan-item-floor" style={{ fontSize: '0.6rem' }}>{['1','2','3','4','5','6'].includes(a.lantai) ? `Lt.${a.lantai}` : a.lantai}</span>
                     </button>
                   ))}
                 </div>
-                <button onClick={() => { resetLaporan(); setStep(1); }} className="btn-secondary btn-full" style={{ marginTop: '0.25rem' }}>Kembali</button>
+                <button onClick={() => { resetLaporan(); setStep(1); setScanning(false); }} className="btn-secondary btn-full" style={{ marginTop: '0.5rem', padding: '0.5rem' }}>Kembali</button>
               </div>
             )}
 
@@ -359,7 +553,7 @@ export default function SecurityPatrolApp({
                     <label>FOTO</label>
                     {foto ? <div className="photo-preview"><img src={foto} alt="" /><button type="button" onClick={() => setFoto(null)} className="photo-remove">X</button></div>
                       : <label className="photo-upload-btn"><Camera size={16} /> Ambil Foto
-                        <input type="file" accept="image/*" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => setFoto(r.result); r.readAsDataURL(f); } }} hidden />
+                        <input type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setFoto(compressed)); }; r.readAsDataURL(f); } e.target.value = ''; }} hidden />
                       </label>}
                   </div>
                 </div>
@@ -448,7 +642,7 @@ export default function SecurityPatrolApp({
                     <label>FOTO <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(opsional)</span></label>
                     {mFoto ? <div className="photo-preview"><img src={mFoto} alt="" /><button type="button" onClick={() => setMFoto(null)} className="photo-remove">X</button></div>
                       : <label className="photo-upload-btn"><Camera size={16} /> Ambil Foto
-                        <input type="file" accept="image/*" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => setMFoto(r.result); r.readAsDataURL(f); } }} hidden />
+                        <input type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files[0]; if (f) { const r = new FileReader(); r.onloadend = () => { compressImage(r.result).then(compressed => setMFoto(compressed)); }; r.readAsDataURL(f); } e.target.value = ''; }} hidden />
                       </label>}
                   </div>
                 </div>

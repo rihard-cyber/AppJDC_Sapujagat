@@ -1,5 +1,18 @@
+/**
+ * =======================================================
+ *   SMPJDC SECURITY MANAGEMENT SYSTEM
+ *   Module: Fast Report Form (Laporan Cepat)
+ *   Signed by: Richard Meha (by -Richard)
+ *   Last Maintained: 2026-06-07
+ *   Description: Fast report submission for security guards,
+ *                integrating compressed photos and GPS coordinates.
+ * =======================================================
+ */
+
 import React, { useState } from 'react';
 import { Send, Camera, MapPin, FileText, AlertTriangle, CheckCircle, X } from 'lucide-react';
+import { generateAntiFraudData } from '../utils/security';
+import { compressImage } from '../utils/image';
 
 export default function LaporForm({ currentUser, areas, onAddReport, onAddLog }) {
   const [jenis, setJenis] = useState('patroli');
@@ -28,7 +41,7 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
     'Pintu Terbuka', 'Orang Mencurigakan', 'Lainnya'
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErrors({});
 
@@ -46,56 +59,57 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
     }
 
     setLoading(true);
+    const fraudData = await generateAntiFraudData(currentUser.id);
 
-    setTimeout(() => {
-      if (jenis === 'patroli') {
-        const area = areas.find(a => a.id === areaId);
-        const isAman = kondisi === 'Aman dan Kondusif' || kondisi === 'Ada Aktivitas' || kondisi === 'Renovasi';
-        onAddReport({
-          timestamp: new Date().toISOString(),
-          timestampEnd: new Date().toISOString(),
-          userId: currentUser.id,
-          userName: currentUser.nama,
-          areaId: area.id,
-          gedung: area.gedung || 'SMPJDC',
-          lantai: area.lantai,
-          zona: area.zona,
-          titik: area.titik,
-          shift: '-',
-          kategori: isAman ? '-' : kondisi,
-          kodeTemuan: '-',
-          temuan: isAman ? 'Normal' : kondisi,
-          status: isAman ? 'normal' : 'temuan',
-          kondisi: kondisi,
-          severity: isAman ? 'Rendah' : 'Sedang',
-          keterangan: keterangan,
-          foto: foto
-        });
-      } else {
-        const today = new Date().toISOString().split('T')[0];
-        onAddLog({
-          waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-          jamKejadian: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-          lokasi: lokasiMutasi,
-          uraian: uraianMutasi,
-          kategori: katMutasi,
-          foto: foto,
-          petugas: currentUser.nama,
-          nrp: currentUser.nrp,
-          tanggal: today,
-          pelapor: currentUser.nama
-        });
-      }
+    if (jenis === 'patroli') {
+      const area = areas.find(a => a.id === areaId);
+      const isAman = kondisi === 'Aman dan Kondusif' || kondisi === 'Ada Aktivitas' || kondisi === 'Renovasi';
+      onAddReport({
+        timestamp: new Date().toISOString(),
+        timestampEnd: new Date().toISOString(),
+        userId: currentUser.id,
+        userName: currentUser.nama,
+        areaId: area.id,
+        gedung: area.gedung || 'SMPJDC',
+        lantai: area.lantai,
+        zona: area.zona,
+        titik: area.titik,
+        shift: '-',
+        kategori: isAman ? '-' : kondisi,
+        kodeTemuan: '-',
+        temuan: isAman ? 'Normal' : kondisi,
+        status: isAman ? 'normal' : 'temuan',
+        kondisi: kondisi,
+        severity: isAman ? 'Rendah' : 'Sedang',
+        keterangan: keterangan,
+        foto: foto,
+        antiFraud: fraudData
+      });
+    } else {
+      const today = new Date().toISOString().split('T')[0];
+      onAddLog({
+        waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        jamKejadian: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        lokasi: lokasiMutasi,
+        uraian: uraianMutasi,
+        kategori: katMutasi,
+        foto: foto,
+        petugas: currentUser.nama,
+        nrp: currentUser.nrp,
+        tanggal: today,
+        pelapor: currentUser.nama,
+        antiFraud: fraudData
+      });
+    }
 
-      setLoading(false);
-      setDone(true);
-      setKeterangan('');
-      setUraianMutasi('');
-      setLokasiMutasi('');
-      setFoto(null);
-      setAreaId('');
-      setTimeout(() => setDone(false), 3000);
-    }, 500);
+    setLoading(false);
+    setDone(true);
+    setKeterangan('');
+    setUraianMutasi('');
+    setLokasiMutasi('');
+    setFoto(null);
+    setAreaId('');
+    setTimeout(() => setDone(false), 3000);
   };
 
   return (
@@ -210,9 +224,24 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
                     <button type="button" onClick={() => setFoto(null)} style={{ position: 'absolute', top: '-4px', right: '-4px', background: 'var(--color-danger)', border: 'none', borderRadius: '50%', color: 'white', width: '18px', height: '18px', fontSize: '0.6rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={10} /></button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => { const f = prompt('Tempel URL foto (atau kosongkan):'); if (f) setFoto(f); }} className="btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <Camera size={14} /> Tambah Foto
-                  </button>
+                  <label className="btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <Camera size={14} /> Ambil / Upload Foto
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={e => {
+                        const f = e.target.files[0];
+                        if (f) {
+                          const r = new FileReader();
+                          r.onloadend = () => { compressImage(r.result).then(compressed => setFoto(compressed)); };
+                          r.readAsDataURL(f);
+                        }
+                        e.target.value = '';
+                      }}
+                      hidden
+                    />
+                  </label>
                 )}
               </div>
             </div>

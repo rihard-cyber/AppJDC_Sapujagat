@@ -1,3 +1,14 @@
+/**
+ * =======================================================
+ *   SMPJDC SECURITY MANAGEMENT SYSTEM
+ *   Module: Main Application Entry (App.jsx)
+ *   Signed by: Richard Meha (by -Richard)
+ *   Last Maintained: 2026-06-07
+ *   Description: Main orchestrator of JDC management dashboard,
+ *                complaints sync, and safe localStorage handler.
+ * =======================================================
+ */
+
 import React, { useState, useEffect } from 'react';
 import { hashPin, validateSession } from './utils/security';
 import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore, loadAllComplaintsFromFirestore } from './utils/firebase';
@@ -380,28 +391,127 @@ export default function App() {
     } catch { return []; }
   });
 
+  const pruneReportsAndRetry = () => {
+    setReports(prev => {
+      const pruned = prev.map((r, idx) => {
+        if (idx >= 10 && r.foto) {
+          return { ...r, foto: null };
+        }
+        return r;
+      });
+      try {
+        localStorage.setItem('sapujagat_reports', JSON.stringify(pruned));
+      } catch (e) {
+        const hardPruned = pruned.slice(0, 20).map(r => ({ ...r, foto: null }));
+        try {
+          localStorage.setItem('sapujagat_reports', JSON.stringify(hardPruned));
+        } catch (err) {
+          console.error('Hard prune of reports failed:', err);
+        }
+      }
+      return pruned;
+    });
+  };
+
+  const pruneFindingsAndRetry = () => {
+    setFindings(prev => {
+      const pruned = prev.map((f, idx) => {
+        if (idx >= 10 && f.foto) {
+          return { ...f, foto: null };
+        }
+        return f;
+      });
+      try {
+        localStorage.setItem('sapujagat_findings', JSON.stringify(pruned));
+      } catch (e) {
+        const hardPruned = pruned.slice(0, 20).map(f => ({ ...f, foto: null }));
+        try {
+          localStorage.setItem('sapujagat_findings', JSON.stringify(hardPruned));
+        } catch (err) {
+          console.error('Hard prune of findings failed:', err);
+        }
+      }
+      return pruned;
+    });
+  };
+
+  const pruneMutasiAndRetry = () => {
+    setMutasiLogs(prev => {
+      const pruned = prev.map((m, idx) => {
+        if (idx >= 10 && m.foto) {
+          return { ...m, foto: null };
+        }
+        return m;
+      });
+      try {
+        localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify(pruned));
+      } catch (e) {
+        const hardPruned = pruned.slice(0, 20).map(m => ({ ...m, foto: null }));
+        try {
+          localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify(hardPruned));
+        } catch (err) {
+          console.error('Hard prune of mutasi failed:', err);
+        }
+      }
+      return pruned;
+    });
+  };
+
   useEffect(() => {
-    localStorage.setItem('sapujagat_users', JSON.stringify(users));
+    try {
+      localStorage.setItem('sapujagat_users', JSON.stringify(users));
+    } catch (e) {
+      console.error('Failed to save users to localStorage', e);
+    }
   }, [users]);
 
   useEffect(() => {
-    localStorage.setItem('sapujagat_areas', JSON.stringify(areas));
+    try {
+      localStorage.setItem('sapujagat_areas', JSON.stringify(areas));
+    } catch (e) {
+      console.error('Failed to save areas to localStorage', e);
+    }
   }, [areas]);
 
   useEffect(() => {
-    localStorage.setItem('sapujagat_reports', JSON.stringify(reports));
+    try {
+      localStorage.setItem('sapujagat_reports', JSON.stringify(reports));
+    } catch (e) {
+      console.error('Failed to save reports to localStorage', e);
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        pruneReportsAndRetry();
+      }
+    }
   }, [reports]);
 
   useEffect(() => {
-    localStorage.setItem('sapujagat_findings', JSON.stringify(findings));
+    try {
+      localStorage.setItem('sapujagat_findings', JSON.stringify(findings));
+    } catch (e) {
+      console.error('Failed to save findings to localStorage', e);
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        pruneFindingsAndRetry();
+      }
+    }
   }, [findings]);
 
   useEffect(() => {
-    localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify(mutasiLogs));
+    try {
+      localStorage.setItem('smpjdc_mutasi_logs', JSON.stringify(mutasiLogs));
+    } catch (e) {
+      console.error('Failed to save mutasi logs to localStorage', e);
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        pruneMutasiAndRetry();
+      }
+    }
   }, [mutasiLogs]);
 
   useEffect(() => {
-    localStorage.setItem('smpjdc_attendance_logs', JSON.stringify(attendanceLogs));
+    try {
+      localStorage.setItem('smpjdc_attendance_logs', JSON.stringify(attendanceLogs));
+    } catch (e) {
+      console.error('Failed to save attendance logs to localStorage', e);
+    }
   }, [attendanceLogs]);
 
   useEffect(() => {
