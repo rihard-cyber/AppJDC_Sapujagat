@@ -236,6 +236,17 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  const clearSOS = React.useCallback(() => {
+    if (sosAudio) {
+      try {
+        sosAudio.osc.stop();
+        sosAudio.audioCtx.close();
+      } catch (e) {}
+      setSosAudio(null);
+    }
+    setActiveSOS(null);
+  }, [sosAudio]);
+
   // Handle Android back button natively (Capacitor WebView)
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
@@ -744,17 +755,6 @@ export default function App() {
     if (audio) setSosAudio(audio);
   };
 
-  const clearSOS = React.useCallback(() => {
-    if (sosAudio) {
-      try {
-        sosAudio.osc.stop();
-        sosAudio.audioCtx.close();
-      } catch (e) {}
-      setSosAudio(null);
-    }
-    setActiveSOS(null);
-  }, [sosAudio]);
-
   const handleAddReport = (newReport) => {
     const reportId = `rep-${Math.floor(1000 + Math.random() * 9000)}`;
     const reportData = { id: reportId, ...newReport };
@@ -1254,7 +1254,7 @@ export default function App() {
 
         <div className="animate-slide-up">
           {currentTab === 'dashboard' && (isGodMode || (isAdmin && !isClient)) && (
-            <ManagementDashboard reports={reports} findings={findings} areas={areas} users={users} attendanceLogs={attendanceLogs} mutasiLogs={mutasiLogs} onUpdateStatus={updateFindingStatus} onDispatchFinding={dispatchFinding} />
+            <ManagementDashboard reports={reports} findings={findings} areas={areas} users={users} attendanceLogs={attendanceLogs} mutasiLogs={mutasiLogs} complaints={complaints} onUpdateStatus={updateFindingStatus} onDispatchFinding={dispatchFinding} onUpdateComplaint={handleUpdateComplaint} />
           )}
 
           {currentTab === 'absensi' && (isGodMode || isAdmin || ['Danru', 'Wadanru'].includes(currentUser.jabatan)) && (

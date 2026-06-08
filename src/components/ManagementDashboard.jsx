@@ -4,6 +4,7 @@ import {
   MapPin, 
   Clock, 
   CheckCircle, 
+  Check,
   BarChart3, 
   AlertOctagon,
   AlertTriangle,
@@ -33,12 +34,19 @@ const STATUS_COLOR = {
   Closed:      { bg: 'rgba(16,185,129,0.12)',  color: '#10b981', label: 'Selesai' },
 };
 
-export default function ManagementDashboard({ reports, findings, areas, users, attendanceLogs = [], mutasiLogs = [], onUpdateStatus, onDispatchFinding }) {
+const DEPARTMENTS = ['Teknisi', 'Cleaning', 'Keamanan'];
+const COMPLAINT_STATUS_COLOR = {
+  Baru: '#3b82f6', Diterima: '#f59e0b', Diproses: '#8b5cf6', Selesai: '#10b981'
+};
+
+export default function ManagementDashboard({ reports, findings, areas, users, attendanceLogs = [], mutasiLogs = [], complaints = [], onUpdateStatus, onDispatchFinding, onUpdateComplaint }) {
   const [graphFilter, setGraphFilter] = useState('hari');
   const [selectedFloor, setSelectedFloor] = useState('Basement');
   const [activeTab, setActiveTab] = useState('semua'); // 'semua' | 'Teknisi' | 'Cleaning' | 'Keamanan'
   const [expandedFinding, setExpandedFinding] = useState(null);
   const [showWASent, setShowWASent] = useState({});
+  const [selectedFindings, setSelectedFindings] = useState([]);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // Load WA contacts dynamically from localStorage (updated via Settings)
   const WA_CONTACTS = getWAContacts();
@@ -100,6 +108,51 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
   const maxPatrolVal = Math.max(...activeGraph.patrols) * 1.15;
 
   // ── AI Summary ─────────────────────────────────────────────────────────────
+  // ── Complaints ──────────────────────────────────────────────────────────────
+  const complaintsNew = complaints.filter(c => c.status === 'Baru').length;
+  const complaintsActive = complaints.filter(c => c.status !== 'Selesai').length;
+  const recentComplaints = [...complaints].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 4);
+
+  // ── Attendance per Regu ────────────────────────────────────────────────────
+  const reguList = ['Regu A', 'Regu B', 'Regu C', 'Regu D'];
+  const reguAttendance = reguList.map(regu => {
+    const members = users.filter(u => u.regu === regu && ['Danru', 'Wadanru', 'Anggota'].includes(u.jabatan));
+    const total = members.length;
+    let hadir = 0, alpha = 0, sakit = 0, izin = 0;
+    if (todayAttendance) {
+      todayAttendance.details.forEach(d => {
+        const user = members.find(u => u.id === d.userId);
+        if (user) {
+          if (d.status === 'Hadir' || d.status === 'Tukar Shift') hadir++;
+          else if (d.status === 'Tidak Hadir' || d.status === 'Mangkir') alpha++;
+          else if (d.status === 'Sakit') sakit++;
+          else if (d.status === 'Cuti') izin++;
+        }
+      });
+    }
+    return { regu, total, hadir, alpha, sakit, izin, pct: total > 0 ? Math.round((hadir / total) * 100) : 0 };
+  });
+
+  // ── Patrol performance per Regu ────────────────────────────────────────────
+  const reguPatrol = reguList.map(regu => {
+    const memberIds = users.filter(u => u.regu === regu && ['Danru', 'Wadanru', 'Anggota'].includes(u.jabatan)).map(u => u.id);
+    const patrolCount = reportsToday.filter(r => memberIds.includes(r.userId)).length;
+    const coveredAreas = new Set(reportsToday.filter(r => memberIds.includes(r.userId)).map(r => r.areaId));
+    return { regu, patrolCount, coveredAreas: coveredAreas.size };
+  });
+
+  // ── Security Health Score ───────────────────────────────────────────────────
+  const patrolPct = areas.length > 0 ? (patrolledAreasToday.size / areas.length) * 100 : 0;
+  const attendancePct = kpiHadir > 0 || kpiAlpha > 0 || kpiSakit > 0 || kpiIzin > 0
+    ? (kpiHadir / (kpiHadir + kpiAlpha + kpiSakit + kpiIzin)) * 100 : 100;
+  const findingsClosed = findings.length > 0 ? (findings.filter(f => f.status === 'Closed').length / findings.length) * 100 : 100;
+  const complaintsResolved = complaints.length > 0 ? (complaints.filter(c => c.status === 'Selesai').length / complaints.length) * 100 : 100;
+  const healthScore = Math.round(
+    (patrolPct * 0.30) + (attendancePct * 0.25) + (findingsClosed * 0.25) + (complaintsResolved * 0.20)
+  );
+  const healthLabel = healthScore >= 90 ? 'Sangat Baik' : healthScore >= 75 ? 'Baik' : healthScore >= 60 ? 'Cukup' : 'Perlu Perhatian';
+  const healthColor = healthScore >= 90 ? '#10b981' : healthScore >= 75 ? '#3b82f6' : healthScore >= 60 ? '#f59e0b' : '#ef4444';
+
   const generateAISummary = () => {
     const unresolved = findings.filter(f => f.status !== 'Closed').length;
     const critical = findings.filter(f => f.severity === 'Kritis' && f.status !== 'Closed').length;
@@ -130,7 +183,7 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="management-dashboard-wrap" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
 
       {/* ── 1. KPI PATROLI ────────────────────────────────────────────────── */}
       <div className="glass-panel" style={{ padding: '1.25rem' }}>
@@ -149,6 +202,66 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
               <h3 className="kpi-value" style={{ color: k.color }}>{k.val}</h3>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* ── 1B. SECURITY HEALTH SCORE ─────────────────────────────────────── */}
+      <div className="glass-panel" style={{
+        padding: '1.25rem 1.5rem',
+        background: `linear-gradient(135deg, ${healthColor}15 0%, ${healthColor}08 100%)`,
+        border: `1px solid ${healthColor}30`
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '50%',
+              background: `conic-gradient(${healthColor} ${healthScore * 3.6}deg, rgba(0,0,0,0.08) 0deg)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0
+            }}>
+              <div style={{
+                width: '52px', height: '52px', borderRadius: '50%',
+                background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: healthColor }}>{healthScore}</span>
+              </div>
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: healthColor }}>Security Health Score</h3>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                Status: <strong style={{ color: healthColor }}>{healthLabel}</strong> — 
+                Patroli {Math.round(patrolPct)}% • 
+                Absensi {Math.round(attendancePct)}% • 
+                Temuan {Math.round(findingsClosed)}% • 
+                Komplain {Math.round(complaintsResolved)}%
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <button onClick={() => {
+              const text = `🛡 *SECURITY HEALTH SCORE SMPJDC*\n━━━━━━━━━━━━━━━━━━\nSkor Kesehatan: ${healthScore}/100 (${healthLabel})\n\n📊 Patroli: ${Math.round(patrolPct)}% (${patrolledAreasToday.size}/${areas.length} area)\n👥 Absensi: ${Math.round(attendancePct)}%\n🔍 Temuan Selesai: ${Math.round(findingsClosed)}%\n📩 Komplain Selesai: ${Math.round(complaintsResolved)}%\n━━━━━━━━━━━━━━━━━━\n_Sistem Manajemen Keamanan JDC_`;
+              window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+            }} style={{
+              padding: '0.35rem 0.6rem', fontSize: '0.65rem', borderRadius: '6px', fontWeight: 700,
+              border: '1px solid #25D366', background: 'rgba(37,211,102,0.1)', color: '#25D366',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontFamily: 'var(--font-sans)'
+            }}>
+              <Send size={11}/> Share WA
+            </button>
+            <button onClick={() => {
+              const el = document.querySelector('.management-dashboard-wrap');
+              if (!el) return;
+              const text = Array.from(el.querySelectorAll('h3, h4, p, span, strong')).map(e => e.textContent).join(' | ');
+              navigator.clipboard?.writeText(
+                `🛡 LAPORAN RINGKASAN SMPJDC\n${new Date().toLocaleDateString('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}\n\nSkor Kesehatan: ${healthScore}/100 (${healthLabel})\nPatroli: ${patrolledAreasToday.size}/${areas.length} area\nHadir: ${kpiHadir} personil\nTemuan Terbuka: ${totalFindingsOpen}\nKomplain Baru: ${complaintsNew}`
+              );
+            }} style={{
+              padding: '0.35rem 0.6rem', fontSize: '0.65rem', borderRadius: '6px', fontWeight: 700,
+              border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-secondary)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontFamily: 'var(--font-sans)'
+            }}>
+              <ClipboardList size={11}/> Salin
+            </button>
+          </div>
         </div>
       </div>
 
@@ -262,11 +375,38 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
 
       {/* ── 5. TABEL TEMUAN + KIRIM WA PER TEMUAN ────────────────────────── */}
       <div className="glass-panel finding-section-panel" style={{ padding:'1.5rem' }}>
-        {/* Header + Filter Tabs */}
+        {/* Header + Filter Tabs + Bulk Forward */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'0.75rem', marginBottom:'1.25rem' }}>
-          <h3 style={{ fontSize:'1.05rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
-            <ClipboardList size={18} className="text-primary"/> Daftar Tiket Temuan & Disposisi WA
-          </h3>
+          <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', flexWrap:'wrap' }}>
+            <h3 style={{ fontSize:'1.05rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
+              <ClipboardList size={18} className="text-primary"/> Daftar Tiket Temuan & Disposisi WA
+            </h3>
+            {selectedFindings.length > 0 && (
+              <div style={{ display:'flex', gap:'0.3rem', alignItems:'center' }}>
+                <span style={{ fontSize:'0.7rem', color:'var(--text-secondary)', fontWeight:600 }}>{selectedFindings.length} dipilih</span>
+                {Object.entries(WA_CONTACTS).filter(([dept]) => dept !== 'semua').map(([dept, info]) => (
+                  <button key={dept} onClick={() => {
+                    selectedFindings.forEach(id => {
+                      const f = findings.find(fi => fi.id === id);
+                      if (f && onDispatchFinding) onDispatchFinding(id, dept);
+                    });
+                    setSelectedFindings([]);
+                  }} style={{
+                    padding:'0.25rem 0.5rem', fontSize:'0.6rem', borderRadius:'6px', fontWeight:700,
+                    border:`1px solid ${info.color}44`, background:`${info.color}12`, color: info.color,
+                    cursor:'pointer', display:'flex', alignItems:'center', gap:'0.2rem', fontFamily:'var(--font-sans)'
+                  }}>
+                    <Send size={9}/> Forward {selectedFindings.length} ke {dept}
+                  </button>
+                ))}
+                <button onClick={() => setSelectedFindings([])} style={{
+                  padding:'0.25rem 0.4rem', fontSize:'0.6rem', borderRadius:'6px', fontWeight:600,
+                  border:'1px solid var(--border-glass)', background:'transparent', color:'var(--text-muted)',
+                  cursor:'pointer', fontFamily:'var(--font-sans)'
+                }}>Batal</button>
+              </div>
+            )}
+          </div>
           <div className="filter-tabs-wrap">
             <div style={{ display:'flex', gap:'0.25rem', background:'var(--bg-primary)', padding:'0.25rem', borderRadius:'10px' }}>
               {['semua', 'Teknisi', 'Cleaning', 'Keamanan'].map(tab => (
@@ -286,6 +426,26 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
           </div>
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+            {/* Select All Row */}
+            {filteredFindings.length > 1 && (
+              <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.25rem 0.5rem', fontSize:'0.68rem', color:'var(--text-muted)' }}>
+                <div onClick={() => {
+                  if (selectedFindings.length === filteredFindings.length) {
+                    setSelectedFindings([]);
+                  } else {
+                    setSelectedFindings(filteredFindings.map(f => f.id));
+                  }
+                }} style={{
+                  width:'16px', height:'16px', borderRadius:'4px', flexShrink:0, cursor:'pointer',
+                  border: `2px solid ${selectedFindings.length === filteredFindings.length ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+                  background: selectedFindings.length === filteredFindings.length ? 'var(--color-primary)' : 'transparent',
+                  display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s'
+                }}>
+                  {selectedFindings.length === filteredFindings.length && <Check size={10} color="white" strokeWidth={3}/>}
+                </div>
+                <span>Pilih semua ({filteredFindings.length} tiket)</span>
+              </div>
+            )}
             {filteredFindings.map(finding => {
               const dept     = finding.department || 'Keamanan';
               const contact  = WA_CONTACTS[dept] || WA_CONTACTS.Keamanan;
@@ -307,8 +467,27 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
                   {/* Row Header */}
                   <div
                     className="finding-ticket-header"
-                    onClick={() => setExpandedFinding(isExpanded ? null : finding.id)}
+                    onClick={(e) => {
+                      if (e.target.closest('.finding-checkbox')) return;
+                      setExpandedFinding(isExpanded ? null : finding.id);
+                    }}
                   >
+                    {/* Checkbox for bulk select */}
+                    <div className="finding-checkbox" onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedFindings(prev =>
+                        prev.includes(finding.id) ? prev.filter(id => id !== finding.id) : [...prev, finding.id]
+                      );
+                    }} style={{
+                      width:'18px', height:'18px', borderRadius:'4px', flexShrink:0,
+                      border: `2px solid ${selectedFindings.includes(finding.id) ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+                      background: selectedFindings.includes(finding.id) ? 'var(--color-primary)' : 'transparent',
+                      display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer',
+                      transition:'all 0.15s'
+                    }}>
+                      {selectedFindings.includes(finding.id) && <Check size={12} color="white" strokeWidth={3}/>}
+                    </div>
+
                     {/* Dept Badge */}
                     <span className="finding-ticket-badge" style={{ color: contact.color, background:`${contact.color}18` }}>
                       {contact.emoji} {dept}
@@ -765,6 +944,192 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
         <p style={{ fontSize:'0.9rem', color:'var(--text-primary)', lineHeight:'1.6', fontStyle:'italic' }}>
           "{generateAISummary()}"
         </p>
+      </div>
+
+      {/* ── 10. RINGKASAN KOMPLAIN MASUK ───────────────────────────────────── */}
+      <div className="glass-panel" style={{ padding: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <MessageCircle size={18} className="text-primary"/>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Ringkasan Komplain Masuk</h3>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem' }}>
+            <span style={{ color: '#3b82f6', fontWeight: 700 }}>Baru: {complaintsNew}</span>
+            <span style={{ color: '#8b5cf6', fontWeight: 700 }}>Aktif: {complaintsActive}</span>
+            <span style={{ color: 'var(--text-muted)' }}>Total: {complaints.length}</span>
+          </div>
+        </div>
+
+        {recentComplaints.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            <CheckCircle2 size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }}/>
+            <p>Belum ada komplain masuk.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {recentComplaints.map(c => {
+              const sc = COMPLAINT_STATUS_COLOR[c.status] || '#6b7280';
+              return (
+                <div key={c.id} style={{
+                  padding: '0.65rem 0.85rem', borderRadius: '8px',
+                  borderLeft: `3px solid ${sc}`,
+                  background: c.status === 'Baru' ? 'rgba(59,130,246,0.04)' : 'rgba(0,0,0,0.02)',
+                  border: '1px solid var(--border-glass)',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem'
+                }}>
+                  <div style={{ flex: 1, minWidth: 140 }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--color-primary)' }}>{c.ticketId}</span>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</span>
+                      <span style={{
+                        fontSize: '0.55rem', padding: '0.1rem 0.4rem', borderRadius: '99px', fontWeight: 700,
+                        background: `${sc}20`, color: sc
+                      }}>{c.status}</span>
+                      <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{c.tenant} • {c.floor}</span>
+                    </div>
+                    <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.15rem', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {c.description}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+                    {c.status !== 'Selesai' && DEPARTMENTS.map(d => (
+                      <button key={d} onClick={() => onUpdateComplaint && onUpdateComplaint(c.id, {
+                        department: d, status: 'Diproses',
+                        history: [...(c.history || []), { status: 'Diproses', timestamp: new Date().toISOString(), note: `Didisposisikan ke ${d} dari Dashboard` }],
+                        waStatus: `Terkirim (${d})`,
+                        waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+                        updatedAt: new Date().toISOString()
+                      })} style={{
+                        padding: '0.25rem 0.5rem', fontSize: '0.6rem', borderRadius: '6px', fontWeight: 700,
+                        border: '1px solid var(--border-glass)', cursor: 'pointer',
+                        background: 'transparent', color: 'var(--text-secondary)',
+                        display: 'flex', alignItems: 'center', gap: '0.2rem', fontFamily: 'var(--font-sans)'
+                      }}>
+                        <Send size={9}/> {d}
+                      </button>
+                    ))}
+                    <button onClick={() => onUpdateComplaint && onUpdateComplaint(c.id, {
+                      status: 'Selesai',
+                      history: [...(c.history || []), { status: 'Selesai', timestamp: new Date().toISOString(), note: 'Ditandai selesai dari Dashboard' }],
+                      updatedAt: new Date().toISOString()
+                    })} style={{
+                      padding: '0.25rem 0.45rem', fontSize: '0.6rem', borderRadius: '6px', fontWeight: 700,
+                      border: '1px solid rgba(16,185,129,0.3)', cursor: 'pointer',
+                      background: 'rgba(16,185,129,0.08)', color: '#10b981'
+                    }}>
+                      <CheckCircle2 size={9}/> Selesai
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── 11. KEPATUHAN & KINERJA PER REGU ───────────────────────────────── */}
+      <div className="grid-cols-2">
+        <div className="glass-panel" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+            <Users size={16}/> KEHADIRAN PER REGU HARI INI
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {reguAttendance.map(r => (
+              <div key={r.regu}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                  <span style={{ fontWeight: 700 }}>{r.regu}</span>
+                  <span style={{ color: r.pct >= 80 ? 'var(--color-success)' : r.pct >= 60 ? '#f59e0b' : '#ef4444', fontWeight: 700 }}>
+                    {r.hadir}/{r.total} ({r.pct}%)
+                  </span>
+                </div>
+                <div style={{ height: '6px', borderRadius: '99px', background: 'rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${r.pct}%`, borderRadius: '99px', transition: 'width 0.5s',
+                    background: r.pct >= 80 ? 'var(--color-success)' : r.pct >= 60 ? '#f59e0b' : '#ef4444' }}/>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                  {r.alpha > 0 && <span>Alpha: {r.alpha}</span>}
+                  {r.sakit > 0 && <span>Sakit: {r.sakit}</span>}
+                  {r.izin > 0 && <span>Izin: {r.izin}</span>}
+                </div>
+              </div>
+            ))}
+            {reguAttendance.every(r => r.total === 0) && (
+              <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                Belum ada data absensi per regu.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+            <Activity size={16}/> AKTIVITAS PATROLI PER REGU
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {reguPatrol.map(r => {
+              const maxPatrol = Math.max(...reguPatrol.map(x => x.patrolCount), 1);
+              const pct = Math.round((r.patrolCount / maxPatrol) * 100);
+              return (
+                <div key={r.regu}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                    <span style={{ fontWeight: 700 }}>{r.regu}</span>
+                    <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
+                      {r.patrolCount} scan • {r.coveredAreas} area
+                    </span>
+                  </div>
+                  <div style={{ height: '6px', borderRadius: '99px', background: 'rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, borderRadius: '99px',
+                      background: 'linear-gradient(90deg, #3b82f6, #6366f1)', transition: 'width 0.5s' }}/>
+                  </div>
+                </div>
+              );
+            })}
+            {reguPatrol.every(r => r.patrolCount === 0) && (
+              <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                Belum ada data patroli hari ini.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 12. TARGET COMPLIANCE ──────────────────────────────────────────── */}
+      <div className="glass-panel" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+          <CheckCircle size={16}/> TARGET KEPATUHAN PATROLI
+        </div>
+        {(() => {
+          const totalAreas = areas.length;
+          const patrolled = patrolledAreasToday.size;
+          const pct = totalAreas > 0 ? Math.round((patrolled / totalAreas) * 100) : 0;
+          const target = 90;
+          const remaining = totalAreas - patrolled;
+          return (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+                <div>
+                  <h4 style={{ fontSize: '1.5rem', fontWeight: 800, color: pct >= target ? 'var(--color-success)' : pct >= 70 ? '#f59e0b' : '#ef4444' }}>
+                    {pct}%
+                  </h4>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    {patrolled} dari {totalAreas} area telah dipatroli
+                  </p>
+                </div>
+                <div style={{ textAlign: 'right', fontSize: '0.75rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Target: {target}%</span>
+                  {remaining > 0 && <p style={{ color: '#ef4444', fontWeight: 700, marginTop: '0.15rem' }}>{remaining} area tersisa</p>}
+                  {remaining === 0 && <p style={{ color: 'var(--color-success)', fontWeight: 700, marginTop: '0.15rem' }}>✓ Target tercapai!</p>}
+                </div>
+              </div>
+              <div style={{ height: '10px', borderRadius: '99px', background: 'rgba(0,0,0,0.08)', overflow: 'hidden', position: 'relative' }}>
+                <div style={{ height: '100%', width: `${pct}%`, borderRadius: '99px', transition: 'width 1s',
+                  background: pct >= target ? 'var(--color-success)' : pct >= 70 ? 'linear-gradient(90deg, #f59e0b, #ef4444)' : '#ef4444' }}/>
+                {/* Target marker */}
+                <div style={{ position: 'absolute', left: `${target}%`, top: 0, width: '2px', height: '100%', background: 'rgba(255,255,255,0.5)' }}/>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
     </div>
