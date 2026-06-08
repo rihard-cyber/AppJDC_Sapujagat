@@ -20,7 +20,7 @@ import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateCompl
   subscribeFindings, addFindingToFirestore, updateFindingInFirestore,
   subscribeAttendanceLogs, addAttendanceLogToFirestore, updateAttendanceLogInFirestore,
   subscribeMutasiLogs, addMutasiLogToFirestore, updateMutasiLogInFirestore, deleteMutasiLogFromFirestore,
-  subscribeUsers, addUserToFirestore, updateUserInFirestore } from './utils/firebase';
+  subscribeUsers, addUserToFirestore, updateUserInFirestore, resetUsersInFirestore } from './utils/firebase';
 import { 
   LayoutDashboard, 
   QrCode, 
@@ -95,6 +95,20 @@ const INITIAL_AREAS = [
 
 const INITIAL_REPORTS = [];
 const INITIAL_FINDINGS = [];
+
+const BASE_USERS = [
+  { id: 1, nrp: '10001', nama: 'Richard', jabatan: 'Admin Super', regu: '' },
+  { id: 2, nrp: '10002', nama: 'Pak Kusnan', jabatan: 'Manajemen', regu: '' },
+  { id: 3, nrp: '10003', nama: 'Agus Siraitin', jabatan: 'SPV', regu: '' },
+  { id: 4, nrp: '20001', nama: 'Wahyudi', jabatan: 'Danru', regu: 'Regu A' },
+  { id: 5, nrp: '20002', nama: 'Faizal Tanjung', jabatan: 'Wadanru', regu: 'Regu A' },
+  { id: 6, nrp: '20003', nama: 'Agus Hendraya', jabatan: 'Danru', regu: 'Regu B' },
+  { id: 7, nrp: '20004', nama: 'Suparlan', jabatan: 'Wadanru', regu: 'Regu B' },
+  { id: 8, nrp: '20005', nama: 'Sutrijono', jabatan: 'Danru', regu: 'Regu C' },
+  { id: 9, nrp: '20006', nama: 'Dedy K', jabatan: 'Wadanru', regu: 'Regu C' },
+  { id: 10, nrp: '20007', nama: 'M. Iqbal', jabatan: 'Danru', regu: 'Regu D' },
+  { id: 11, nrp: '20008', nama: 'Dimas Pratama Putra', jabatan: 'Wadanru', regu: 'Regu D' },
+];
 
 const mapDepartment = (kategori, temuanText = '') => {
   const text = (kategori + ' ' + temuanText).toLowerCase();
@@ -414,19 +428,6 @@ export default function App() {
       }
 
       // Version mismatch — merge semua user default, jangan hapus data existing
-      const BASE_USERS = [
-        { id: 1, nrp: '10001', nama: 'Richard', jabatan: 'Admin Super', regu: '' },
-        { id: 2, nrp: '10002', nama: 'Pak Kusnan', jabatan: 'Manajemen', regu: '' },
-        { id: 3, nrp: '10003', nama: 'Agus Siraitin', jabatan: 'SPV', regu: '' },
-        { id: 4, nrp: '20001', nama: 'Wahyudi', jabatan: 'Danru', regu: 'Regu A' },
-        { id: 5, nrp: '20002', nama: 'Faizal Tanjung', jabatan: 'Wadanru', regu: 'Regu A' },
-        { id: 6, nrp: '20003', nama: 'Agus Hendraya', jabatan: 'Danru', regu: 'Regu B' },
-        { id: 7, nrp: '20004', nama: 'Suparlan', jabatan: 'Wadanru', regu: 'Regu B' },
-        { id: 8, nrp: '20005', nama: 'Sutrijono', jabatan: 'Danru', regu: 'Regu C' },
-        { id: 9, nrp: '20006', nama: 'Dedy K', jabatan: 'Wadanru', regu: 'Regu C' },
-        { id: 10, nrp: '20007', nama: 'M. Iqbal', jabatan: 'Danru', regu: 'Regu D' },
-        { id: 11, nrp: '20008', nama: 'Dimas Pratama Putra', jabatan: 'Wadanru', regu: 'Regu D' },
-      ];
       const existingMap = {};
       if (Array.isArray(parsed)) {
         parsed.forEach(u => {
@@ -1046,6 +1047,22 @@ export default function App() {
     addToast(`Data user berhasil diperbarui!`, 'success');
   };
 
+  const handleResetUsers = async () => {
+    addToast('Mereset database user di Firestore...', 'info');
+    const success = await resetUsersInFirestore(BASE_USERS);
+    if (success) {
+      addToast('Database user di Firestore berhasil direset!', 'success');
+      setUsers(BASE_USERS);
+      localStorage.setItem('sapujagat_users', JSON.stringify(BASE_USERS));
+      signUserData(BASE_USERS);
+      BASE_USERS.forEach(bu => {
+        localStorage.setItem(`smpjdc_pin_${bu.id}`, hashPin(bu.nrp));
+      });
+    } else {
+      addToast('Gagal mereset database user di Firestore. Periksa koneksi internet.', 'danger');
+    }
+  };
+
   const handleUpdateAvatar = async () => {
     setProfileError('');
     setProfileSuccess('');
@@ -1502,7 +1519,7 @@ export default function App() {
 
           {currentTab === 'backup' && isSuperAdmin && (
             <div style={{ padding: '1rem 0' }}>
-              <BackupRestore addToast={addToast} />
+              <BackupRestore addToast={addToast} onResetUsers={handleResetUsers} />
             </div>
           )}
 

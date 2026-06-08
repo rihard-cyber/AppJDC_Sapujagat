@@ -7,7 +7,7 @@ const ALL_KEYS = [
   'smpjdc_db_version', 'smpjdc_session', 'smpjdc_login_attempts'
 ];
 
-export default function BackupRestore({ addToast }) {
+export default function BackupRestore({ addToast, onResetUsers }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const fileRef = useRef(null);
@@ -99,6 +99,34 @@ export default function BackupRestore({ addToast }) {
           </button>
           <input ref={fileRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
         </div>
+
+        {onResetUsers && (
+          <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+            <button
+              onClick={() => {
+                if (window.confirm('PERINGATAN! Tindakan ini akan menghapus semua user saat ini di database Firestore dan menggantinya dengan 11 user default. Apakah Anda yakin?')) {
+                  onResetUsers();
+                }
+              }}
+              disabled={busy}
+              className="btn-danger"
+              style={{
+                width: '100%',
+                padding: '0.7rem',
+                display: 'flex',
+                alignItems: 'center',
+                justify: 'center',
+                gap: '0.4rem',
+                fontSize: '0.82rem',
+                background: 'rgba(239,68,68,0.15)',
+                color: 'var(--color-danger)',
+                border: '1px solid rgba(239,68,68,0.3)'
+              }}
+            >
+              <RefreshCw size={16} /> Reset User Database ke Default
+            </button>
+          </div>
+        )}
       </div>
 
       {result && (

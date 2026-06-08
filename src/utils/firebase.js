@@ -171,3 +171,32 @@ export const subscribeUsers = (callback) =>
 export const addUserToFirestore = createAdder('users');
 
 export const updateUserInFirestore = createUpdater('users');
+
+export const resetUsersInFirestore = async (defaultUsers) => {
+  const database = initFirebase();
+  if (!database) return false;
+  try {
+    const q = query(collection(database, 'users'));
+    const snapshot = await getDocs(q);
+    const deletePromises = [];
+    snapshot.forEach((docSnapshot) => {
+      deletePromises.push(deleteDoc(docSnapshot.ref));
+    });
+    await Promise.all(deletePromises);
+
+    const addPromises = defaultUsers.map(async (u) => {
+      const { firebaseId, ...userData } = u;
+      const docRef = await addDoc(collection(database, 'users'), {
+        ...userData,
+        createdAt: serverTimestamp(),
+        firebaseSavedAt: serverTimestamp()
+      });
+      return docRef.id;
+    });
+    await Promise.all(addPromises);
+    return true;
+  } catch (e) {
+    console.warn('[Firebase] Gagal reset users:', e);
+    return false;
+  }
+};
