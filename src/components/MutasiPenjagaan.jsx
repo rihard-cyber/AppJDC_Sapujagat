@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { registerBackHandler } from '../utils/navigation';
 import { Clock, MapPin, FileText, Camera, Send, History, Trash2, Info, Search, AlertTriangle, Wrench, Radio, X } from 'lucide-react';
 import { compressImage } from '../utils/image';
 
@@ -19,6 +20,15 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
   const [search, setSearch] = useState('');
   const [filterKat, setFilterKat] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+
+  useEffect(() => {
+    if (!selectedPhoto) return;
+    const unregister = registerBackHandler(() => {
+      setSelectedPhoto(null);
+      return true;
+    });
+    return unregister;
+  }, [selectedPhoto]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

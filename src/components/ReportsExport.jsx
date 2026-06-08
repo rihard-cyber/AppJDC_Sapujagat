@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { registerBackHandler } from '../utils/navigation';
 import { 
   FileSpreadsheet, 
   FileText, 
@@ -11,6 +12,15 @@ import { buildWALink } from '../data/waContacts';
 
 export default function ReportsExport({ reports, findings, users, onUpdateFindingStatus, onDispatchFinding }) {
   const [selectedLog, setSelectedLog] = useState(null);
+
+  useEffect(() => {
+    if (!selectedLog) return;
+    const unregister = registerBackHandler(() => {
+      setSelectedLog(null);
+      return true;
+    });
+    return unregister;
+  }, [selectedLog]);
 
   const generateWALink = (find, dept) => {
     return buildWALink(find, dept);

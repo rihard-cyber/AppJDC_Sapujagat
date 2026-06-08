@@ -13,6 +13,7 @@
     "android:open": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/app": "^6.0.3",
     "@capacitor/core": "^6.0.0",
     "firebase": "^12.14.0",
     "html5-qrcode": "^2.3.8",

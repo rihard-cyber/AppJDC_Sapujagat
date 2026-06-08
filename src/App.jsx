@@ -10,6 +10,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+import { executeBackHandlers } from './utils/navigation';
 import { hashPin, validateSession } from './utils/security';
 import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore,
   subscribeReports, addReportToFirestore,
@@ -129,6 +132,7 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('BOOTING...');
   const [currentTab, setCurrentTab] = useState('dashboard');
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeSOS, setActiveSOS] = useState(null);
   const [toasts, setToasts] = useState([]);
@@ -192,7 +196,16 @@ export default function App() {
             setCurrentUser(found);
             setAuthenticated(true);
             setShowSplash(true);
-            setCurrentTab(['Danru', 'Wadanru', 'Anggota'].includes(found.jabatan) ? 'guard-simulator' : 'dashboard');
+            
+            // Restore last active route from hash or last_route, default to guard/dashboard
+            const hash = window.location.hash.replace('#/', '').replace('#', '');
+            const lastRoute = localStorage.getItem('smpjdc_last_route');
+            const defaultTab = ['Danru', 'Wadanru', 'Anggota'].includes(found.jabatan) ? 'guard-simulator' : 'dashboard';
+            const initialTab = hash || lastRoute || defaultTab;
+            
+            setCurrentTab(initialTab);
+            window.location.hash = '#/' + initialTab;
+            localStorage.setItem('smpjdc_last_route', initialTab);
             return;
           }
         }
@@ -202,6 +215,74 @@ export default function App() {
     }
     setAuthenticated(false);
   }, []);
+
+  // Sync tab state when browser popstate triggers (e.g. Back button in browser/PWA)
+  useEffect(() => {
+    const handlePopState = () => {
+      const hash = window.location.hash.replace('#/', '').replace('#', '');
+      if (hash && hash !== 'login') {
+        const validTabs = [
+          'dashboard', 'absensi', 'target-compliance', 'barcodes', 
+          'mutasi', 'reports', 'guard-simulator', 'user-management', 
+          'backup', 'lapor', 'complaint'
+        ];
+        if (validTabs.includes(hash)) {
+          setCurrentTab(hash);
+          localStorage.setItem('smpjdc_last_route', hash);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Handle Android back button natively (Capacitor WebView)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let backButtonSub;
+    try {
+      backButtonSub = CapApp.addListener('backButton', () => {
+        // 1. Run custom back handlers (modals inside sub-components)
+        if (executeBackHandlers()) {
+          return;
+        }
+
+        // 2. Handle overlays in App.jsx itself
+        if (showProfileModal) {
+          setShowProfileModal(false);
+          setVerifStep('idle');
+          setVerifError('');
+          return;
+        }
+
+        if (activeSOS) {
+          clearSOS();
+          return;
+        }
+
+        // 3. If on home/dashboard tab, show exit confirmation modal
+        const defaultTab = currentUser && ['Danru', 'Wadanru', 'Anggota'].includes(currentUser.jabatan) 
+          ? 'guard-simulator' 
+          : 'dashboard';
+          
+        if (currentTab === defaultTab) {
+          setShowExitConfirm(true);
+        } else {
+          // 4. Otherwise, go back in history
+          window.history.back();
+        }
+      });
+    } catch (e) {
+      console.warn("Gagal menambahkan listener tombol back native:", e);
+    }
+
+    return () => {
+      if (backButtonSub) {
+        backButtonSub.then(sub => sub.remove());
+      }
+    };
+  }, [currentUser, currentTab, showProfileModal, activeSOS, sosAudio, clearSOS]);
 
   // Splash screen effect
   useEffect(() => {
@@ -663,7 +744,7 @@ export default function App() {
     if (audio) setSosAudio(audio);
   };
 
-  const clearSOS = () => {
+  const clearSOS = React.useCallback(() => {
     if (sosAudio) {
       try {
         sosAudio.osc.stop();
@@ -672,7 +753,7 @@ export default function App() {
       setSosAudio(null);
     }
     setActiveSOS(null);
-  };
+  }, [sosAudio]);
 
   const handleAddReport = (newReport) => {
     const reportId = `rep-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -860,7 +941,10 @@ export default function App() {
     setCurrentUser(user);
     setAuthenticated(true);
     setShowSplash(true);
-    setCurrentTab(['Danru', 'Wadanru', 'Anggota'].includes(user.jabatan) ? 'guard-simulator' : 'dashboard');
+    const targetTab = ['Danru', 'Wadanru', 'Anggota'].includes(user.jabatan) ? 'guard-simulator' : 'dashboard';
+    setCurrentTab(targetTab);
+    window.location.hash = '#/' + targetTab;
+    localStorage.setItem('smpjdc_last_route', targetTab);
   };
 
   const handleSetup = (user) => {
@@ -869,10 +953,14 @@ export default function App() {
     setShowSplash(true);
     setHasUsers(true);
     setCurrentTab('dashboard');
+    window.location.hash = '#/dashboard';
+    localStorage.setItem('smpjdc_last_route', 'dashboard');
   };
 
   const handleLogout = () => {
     localStorage.removeItem('smpjdc_session');
+    localStorage.removeItem('smpjdc_last_route');
+    window.location.hash = '#/login';
     setAuthenticated(false);
     setCurrentUser(null);
     setShowSplash(false);
@@ -881,7 +969,21 @@ export default function App() {
 
   const handleNavClick = (tabName) => {
     setCurrentTab(tabName);
+    window.location.hash = '#/' + tabName;
+    localStorage.setItem('smpjdc_last_route', tabName);
     setIsSidebarOpen(false);
+  };
+
+  const handleExitApp = () => {
+    if (Capacitor.isNativePlatform()) {
+      CapApp.exitApp();
+    } else {
+      setShowExitConfirm(false);
+    }
+  };
+
+  const handleCancelExit = () => {
+    setShowExitConfirm(false);
   };
 
   const jabatanShort = {
@@ -1267,6 +1369,28 @@ export default function App() {
             <button onClick={clearSOS} className="btn-danger" style={{ width: '100%', padding: '1rem' }}>
               Matikan Alarm & Tanggapi Kejadian
             </button>
+          </div>
+        </div>
+      )}
+
+      {showExitConfirm && (
+        <div className="panic-overlay" style={{ zIndex: 10000 }}>
+          <div className="panic-card" style={{ maxWidth: '360px', width: '90%', background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', borderRadius: 'var(--border-radius-lg)' }}>
+            <div className="panic-sos-icon" style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)' }}>
+              <Shield size={32} />
+            </div>
+            <h2 style={{ color: 'var(--text-primary)', fontSize: '1.25rem', marginBottom: '0.5rem', fontWeight: 800 }}>Keluar dari Aplikasi?</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+              Apakah Anda yakin ingin menutup aplikasi patroli SMPJDC?
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={handleExitApp} className="btn-danger" style={{ flex: 1, padding: '0.65rem', fontSize: '0.85rem', fontWeight: 700 }}>
+                Ya, Keluar
+              </button>
+              <button onClick={handleCancelExit} className="btn-secondary" style={{ flex: 1, padding: '0.65rem', fontSize: '0.85rem', fontWeight: 700 }}>
+                Tidak
+              </button>
+            </div>
           </div>
         </div>
       )}

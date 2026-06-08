@@ -19,6 +19,7 @@ import KATEGORI_TEMUAN from '../data/kategoriTemuan';
 import { Html5Qrcode } from 'html5-qrcode';
 import { getGPSCoordinates, generateAntiFraudData } from '../utils/security';
 import { compressImage } from '../utils/image';
+import { registerBackHandler } from '../utils/navigation';
 
 const KATEGORI_MUTASI = [
   { id: 'informasi', label: 'Informasi', icon: Info, color: '#3b82f6' },
@@ -75,6 +76,30 @@ export default function SecurityPatrolApp({
       setScanning(false);
     }
   }, [step]);
+
+  // Handle back button interception for step and tab navigation in simulator app
+  useEffect(() => {
+    const unregister = registerBackHandler(() => {
+      if (tab !== 'patroli') {
+        setTab('patroli');
+        return true;
+      }
+      if (step === 3 && mode) {
+        setMode(null);
+        return true;
+      }
+      if (step > 1) {
+        if (step === 4) {
+          resetLaporan();
+        } else {
+          setStep(prev => prev - 1);
+        }
+        return true;
+      }
+      return false;
+    });
+    return unregister;
+  }, [tab, step, mode]);
 
   // Live Camera Scanner Lifecycle using html5-qrcode
   useEffect(() => {

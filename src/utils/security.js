@@ -41,7 +41,7 @@ export function createSession(userId) {
     userId,
     token: generateSessionToken(),
     loginAt: Date.now(),
-    expiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
   };
   return session;
 }
@@ -53,6 +53,15 @@ export function validateSession(session) {
     localStorage.removeItem('smpjdc_session');
     return false;
   }
+  
+  // Auto-extend session expiration by another 30 days
+  try {
+    session.expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    localStorage.setItem('smpjdc_session', JSON.stringify(session));
+  } catch (e) {
+    console.warn("Gagal memperbarui persistensi sesi:", e);
+  }
+  
   return true;
 }
 

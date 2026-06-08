@@ -12,6 +12,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Camera, User, Building, MapPin, FileText, AlertTriangle, CheckCircle, X, QrCode, ChevronRight } from 'lucide-react';
 import { compressImage } from '../utils/image';
+import { registerBackHandler } from '../utils/navigation';
 
 const CATEGORIES = [
   { id: 'Fasilitas', label: 'Fasilitas', icon: Building, color: '#3b82f6' },
@@ -55,6 +56,19 @@ export default function ComplaintForm({ onAddComplaint }) {
     const t4 = setTimeout(() => setStep('form'), 1200);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
   }, [step]);
+
+  // Handle back button to go back from track mode to main form
+  useEffect(() => {
+    const unregister = registerBackHandler(() => {
+      if (trackMode) {
+        setTrackMode(false);
+        setTrackData(null);
+        return true;
+      }
+      return false;
+    });
+    return unregister;
+  }, [trackMode]);
 
   const handlePhotoCapture = () => {
     if (photoInputRef.current) {
