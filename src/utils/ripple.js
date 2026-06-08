@@ -8,24 +8,25 @@ export function initRipple() {
 
   const style = document.createElement('style')
   style.textContent = `
-    .${RIPPLE_CLASS} {
+    .ripple-effect {
       position: relative;
       overflow: hidden;
       cursor: pointer;
     }
 
-    .${RIPPLE_CLASS} .ripple-circle {
-      position: absolute;
-      border-radius: 50%;
-      background: rgba(59, 130, 246, 0.35);
-      transform: scale(0);
-      animation: ripple-anim 0.6s ease-out forwards;
-      pointer-events: none;
-      will-change: transform, opacity;
+    .ripple-circle {
+      position: absolute !important;
+      border-radius: 50% !important;
+      background: rgba(59, 130, 246, 0.25) !important;
+      transform: scale(0) !important;
+      animation: ripple-anim 0.6s ease-out forwards !important;
+      pointer-events: none !important;
+      will-change: transform, opacity !important;
+      z-index: 1 !important;
     }
 
-    .${RIPPLE_CLASS} .ripple-circle.light {
-      background: rgba(59, 130, 246, 0.15);
+    .ripple-circle.light {
+      background: rgba(59, 130, 246, 0.12) !important;
     }
 
     @keyframes ripple-anim {
@@ -53,6 +54,7 @@ function handleRipple(e) {
   )
   if (!target) return
 
+  target.classList.add(RIPPLE_CLASS)
   target.classList.add('press-effect')
 
   const rect = target.getBoundingClientRect()
