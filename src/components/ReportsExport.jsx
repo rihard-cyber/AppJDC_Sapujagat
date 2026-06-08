@@ -59,7 +59,7 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
     return matchShift && matchFloor && matchOfficer && matchDate && matchKategori && matchKondisi;
   });
 
-  // Export to CSV/Excel simulator
+  // Export to CSV/Excel
   const handleExportCSV = () => {
     let csvContent = "data:text/csv;charset=utf-8,";
     csvContent += "ID,Waktu,Petugas,Gedung,Lantai,Zona,Titik,Shift,Kategori,Kode Temuan,Temuan,Status,Keterangan,GPS Valid,Device,IP\n";

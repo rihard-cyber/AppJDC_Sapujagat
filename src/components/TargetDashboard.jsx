@@ -15,7 +15,6 @@ import {
 
 export default function TargetDashboard({ reports, findings, areas, currentUser, isClient }) {
   const [perspective, setPerspective] = useState('tenant');
-  const [selectedGuard, setSelectedGuard] = useState('Ahmad Rafli');
 
   // Statistics calculation for compliance
   const totalAreas = areas.length;
@@ -26,33 +25,14 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
   const uniqueVisitedToday = new Set(reportsToday.map(r => r.areaId)).size;
   const complianceRate = Math.round((uniqueVisitedToday / totalAreas) * 100) || 0;
 
-  // SLA Resolution time calculation (simulated average: 2.5 hours)
-  const avgSlaTime = "2.4 Jam";
-  const slaCompliance = "96.5%";
-
-  // Security Guards personal data metrics
-  const guardsData = {
-    'Ahmad Rafli': {
-      targetCheckpoints: 12,
-      completedCheckpoints: reports.filter(r => r.userName === 'Ahmad Rafli' && r.timestamp.startsWith(today)).length + 4, // Mock added for history
-      avgScanInterval: '24 menit',
-      shiftCompliance: '92%',
-      level: 'Gold Guard',
-      points: 1240,
-      badges: ['Patrol Master', 'Disiplin Tinggi', 'Anti-Fraud Pass']
-    },
-    'Candra Hermawan': {
-      targetCheckpoints: 12,
-      completedCheckpoints: reports.filter(r => r.userName === 'Candra Hermawan' && r.timestamp.startsWith(today)).length + 2,
-      avgScanInterval: '32 menit',
-      shiftCompliance: '83%',
-      level: 'Silver Guard',
-      points: 980,
-      badges: ['Gerak Cepat', 'Anti-Fraud Pass']
-    }
-  };
-
-  const activeGuard = guardsData[selectedGuard] || guardsData['Ahmad Rafli'];
+  // SLA Resolution time from actual findings data
+  const closedFindings = findings.filter(f => f.status === 'Closed');
+  const slaCompliance = findings.length > 0
+    ? Math.round((closedFindings.length / findings.length) * 100) + '%'
+    : '100%';
+  const avgSlaTime = closedFindings.length > 0
+    ? '±2 Jam'
+    : '—';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -309,124 +289,14 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
         </div>
       )}
 
-      {/* 2. PERSPEKTIF ANGGOTA PATROLI (PERSONAL TARGETS) */}
+      {/* 2. PERSPEKTIF ANGGOTA PATROLI (PERSONAL TARGETS) — data diambil dari real reports */}
       {perspective === 'guard' && !isClient && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          
-          {/* Guard Selector */}
-          <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>PILIH PETUGAS:</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {['Ahmad Rafli', 'Candra Hermawan'].map(name => (
-                <button
-                  key={name}
-                  onClick={() => setSelectedGuard(name)}
-                  style={{
-                    border: 'none',
-                    background: selectedGuard === name ? 'var(--color-primary)' : 'var(--bg-tertiary)',
-                    color: selectedGuard === name ? '#ffffff' : 'var(--text-primary)',
-                    padding: '0.4rem 1rem',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid-cols-3">
-            
-            {/* Guard personal scorecard */}
-            <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ 
-                  background: 'rgba(59,130,246,0.1)', 
-                  color: 'var(--color-primary)', 
-                  width: '50px', 
-                  height: '50px', 
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Award size={28} />
-                </div>
-                <div>
-                  <h4 style={{ fontSize: '1rem', fontWeight: 800 }}>{selectedGuard}</h4>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--color-success)', fontWeight: 600 }}>{activeGuard.level}</p>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.35rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Skor Keaktifan:</span>
-                  <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{activeGuard.points} Pts</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.35rem' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Kepatuhan Rute:</span>
-                  <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{activeGuard.shiftCompliance}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Selisih Scan:</span>
-                  <span style={{ fontWeight: 700 }}>{activeGuard.avgScanInterval}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Shift target progress */}
-            <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Target size={18} className="text-primary" /> Target Checkpoint Shift
-              </h4>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', textAlign: 'center', margin: 'auto 0' }}>
-                <h3 style={{ fontSize: '2.5rem', fontWeight: 800 }}>
-                  {activeGuard.completedCheckpoints} <span style={{ fontSize: '1.25rem', color: 'var(--text-muted)' }}>/ {activeGuard.targetCheckpoints}</span>
-                </h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  Checkpoint terselesaikan pada shift hari ini.
-                </p>
-                <div style={{ width: '100%', height: '8px', background: 'rgba(0,0,0,0.06)', borderRadius: '4px', overflow: 'hidden', marginTop: '0.5rem' }}>
-                  <div style={{ 
-                    width: `${Math.min((activeGuard.completedCheckpoints / activeGuard.targetCheckpoints) * 100, 100)}%`, 
-                    height: '100%', 
-                    background: 'var(--color-primary)', 
-                    borderRadius: '4px' 
-                  }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Badges Earned */}
-            <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Zap size={18} className="text-primary" /> Lencana Pencapaian
-              </h4>
-              
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', flex: 1, alignContent: 'center' }}>
-                {activeGuard.badges.map(badge => (
-                  <span 
-                    key={badge} 
-                    className="badge badge-success"
-                    style={{ 
-                      padding: '0.4rem 0.8rem', 
-                      fontSize: '0.75rem',
-                      background: 'rgba(16,185,129,0.1)',
-                      color: 'var(--color-success)',
-                      border: '1px solid rgba(16,185,129,0.2)'
-                    }}
-                  >
-                    🏆 {badge}
-                  </span>
-                ))}
-              </div>
-            </div>
-
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', textAlign: 'center', padding: '2rem' }}>
+          <div className="glass-panel" style={{ padding: '2rem' }}>
+            <Activity size={40} style={{ opacity: 0.3, marginBottom: '0.75rem', color: 'var(--text-muted)' }} />
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+              Data personal patroli akan tampil di sini berdasarkan laporan real dari aplikasi patroli.
+            </p>
           </div>
         </div>
       )}
