@@ -65,6 +65,56 @@ export function validateSession(session) {
   return true;
 }
 
+// ── Anti-Tamper: Sign & Verify User Data ──────────────────────────────────────
+const STORAGE_SECRET = 'smpjdc_2026_antitamper_';
+
+function computeSignature(data) {
+  const raw = STORAGE_SECRET + JSON.stringify(data) + STORAGE_SECRET;
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const char = raw.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return 'sig_' + Math.abs(hash).toString(36);
+}
+
+export function signUserData(users) {
+  const signature = computeSignature(users);
+  try {
+    localStorage.setItem('sapujagat_users_sig', signature);
+  } catch (e) {
+    console.warn('[Security] Gagal menyimpan signature:', e);
+  }
+}
+
+export function verifyUserDataSignature(users) {
+  try {
+    const stored = localStorage.getItem('sapujagat_users_sig');
+    if (!stored) return false;
+    const expected = computeSignature(users);
+    return stored === expected;
+  } catch (e) {
+    console.warn('[Security] Gagal verifikasi signature:', e);
+    return false;
+  }
+}
+
+// ── Role integrity check via session ──────────────────────────────────────────
+export function signRoleInSession(userId, role) {
+  const raw = `${userId}_${role}_${STORAGE_SECRET}`;
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) {
+    hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+    hash |= 0;
+  }
+  return 'r_' + Math.abs(hash).toString(36);
+}
+
+export function verifyRoleInSession(userId, role, token) {
+  return signRoleInSession(userId, role) === token;
+}
+
 // Rate limiting
 const ATTEMPT_KEY = 'smpjdc_login_attempts';
 

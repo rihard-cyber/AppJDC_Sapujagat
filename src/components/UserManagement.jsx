@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, User, Shield, Smartphone, Hash, Users, Search, ChevronDown, ChevronRight, Save, MessageSquare } from 'lucide-react';
+import { UserPlus, User, Shield, Smartphone, Hash, Users, Search, ChevronDown, ChevronRight, Save, MessageSquare, Edit3, X, Check } from 'lucide-react';
 import { getWAContacts, saveWAContacts } from '../data/waContacts';
 
 const ROLE_OPTIONS = [
@@ -18,13 +18,16 @@ const ROLE_COLORS = {
   'Guest Viewer': '#8b5cf6'
 };
 
-export default function UserManagement({ users, onAddUser }) {
+export default function UserManagement({ users, onAddUser, onUpdateUser }) {
   const [reguPilih, setReguPilih] = useState('Regu B');
   const [reguKustom, setReguKustom] = useState('');
   const [anggotaInput, setAnggotaInput] = useState('');
   const [role, setRole] = useState('Anggota');
   const [search, setSearch] = useState('');
   const [reguBuka, setReguBuka] = useState({});
+  const [editingUser, setEditingUser] = useState(null);
+  const [editRole, setEditRole] = useState('');
+  const [editRegu, setEditRegu] = useState('');
   const [waContacts, setWaContacts] = useState(() => getWAContacts());
   const [saveStatus, setSaveStatus] = useState('');
 
@@ -304,15 +307,44 @@ export default function UserManagement({ users, onAddUser }) {
               {reguBuka[regu] && members.map(u => (
                 <div key={u.id} style={{ padding: '0.5rem 1rem 0.5rem 2.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                   <img src={u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40'} alt="" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(59,130,246,0.2)' }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{u.nama}</div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                      <span>NRP: {u.nrp}</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0.05rem 0.35rem', borderRadius: '3px', fontSize: '0.6rem', fontWeight: 700, background: `${ROLE_COLORS[u.jabatan] || '#666'}20`, color: ROLE_COLORS[u.jabatan] || '#666' }}>
-                        {u.jabatan}
-                      </span>
+                  
+                  {editingUser === u.id ? (
+                    <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.82rem', marginRight: '0.5rem' }}>{u.nama}</span>
+                      <select value={editRole} onChange={e => setEditRole(e.target.value)} className="modern-select" style={{ fontSize: '0.65rem', padding: '0.2rem 0.4rem', border: '1px solid var(--border-glass)', borderRadius: '4px', background: 'transparent', color: 'var(--text-primary)' }}>
+                        {ROLE_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      <select value={editRegu} onChange={e => setEditRegu(e.target.value)} className="modern-select" style={{ fontSize: '0.65rem', padding: '0.2rem 0.4rem', border: '1px solid var(--border-glass)', borderRadius: '4px', background: 'transparent', color: 'var(--text-primary)' }}>
+                        {REGU_PRESETS.map(r => <option key={r} value={r}>{r}</option>)}
+                        <option value="-">-</option>
+                      </select>
+                      <button onClick={() => {
+                        onUpdateUser && onUpdateUser(u.id, { jabatan: editRole, regu: editRegu });
+                        setEditingUser(null);
+                      }} style={{ padding: '0.2rem 0.4rem', borderRadius: '4px', border: '1px solid var(--color-success)', background: 'rgba(16,185,129,0.1)', color: 'var(--color-success)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <Check size={12}/>
+                      </button>
+                      <button onClick={() => setEditingUser(null)} style={{ padding: '0.2rem 0.4rem', borderRadius: '4px', border: '1px solid var(--border-glass)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <X size={12}/>
+                      </button>
                     </div>
-                  </div>
+                  ) : (
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{u.nama}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span>NRP: {u.nrp}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', padding: '0.05rem 0.35rem', borderRadius: '3px', fontSize: '0.6rem', fontWeight: 700, background: `${ROLE_COLORS[u.jabatan] || '#666'}20`, color: ROLE_COLORS[u.jabatan] || '#666' }}>
+                          {u.jabatan}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {editingUser !== u.id && (
+                    <button onClick={() => { setEditingUser(u.id); setEditRole(u.jabatan); setEditRegu(u.regu || '-'); }} style={{ padding: '0.25rem', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', opacity: 0.6, transition: 'opacity 0.2s', flexShrink: 0 }} title="Ubah role/regu">
+                      <Edit3 size={12}/>
+                    </button>
+                  )}
                 </div>
               ))}
               {!reguBuka[regu] && (

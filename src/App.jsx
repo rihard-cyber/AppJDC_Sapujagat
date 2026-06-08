@@ -13,7 +13,7 @@ import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { executeBackHandlers } from './utils/navigation';
-import { hashPin, validateSession } from './utils/security';
+import { hashPin, validateSession, signUserData, verifyUserDataSignature, signRoleInSession, verifyRoleInSession } from './utils/security';
 import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore,
   subscribeReports, addReportToFirestore,
   subscribeFindings, addFindingToFirestore, updateFindingInFirestore,
@@ -173,6 +173,7 @@ export default function App() {
       setUsers(updatedUsers);
       setCurrentUser(prev => ({ ...prev, email: newEmail }));
       localStorage.setItem('sapujagat_users', JSON.stringify(updatedUsers));
+      signUserData(updatedUsers);
       addToast('Email berhasil diperbarui!', 'success');
     } else {
       setVerifError('Kode verifikasi salah. Coba lagi.');
@@ -183,6 +184,19 @@ export default function App() {
     const stored = localStorage.getItem('sapujagat_users');
     const users = stored ? JSON.parse(stored) : null;
     const hasExistingUsers = Array.isArray(users) && users.length > 0;
+
+    // Anti-tamper: verifikasi signature data user
+    if (hasExistingUsers) {
+      const valid = verifyUserDataSignature(users);
+      if (!valid) {
+        console.warn('[Security] Data user telah dimanipulasi! Menghapus session.');
+        localStorage.removeItem('smpjdc_session');
+        localStorage.removeItem('sapujagat_users_sig');
+        setHasUsers(false);
+        setAuthenticated(false);
+        return;
+      }
+    }
     setHasUsers(hasExistingUsers);
 
     const sessionStr = localStorage.getItem('smpjdc_session');
@@ -193,6 +207,13 @@ export default function App() {
           const userList = hasExistingUsers ? users : [];
           const found = userList.find(u => u.id === session.userId);
           if (found) {
+            // Anti-tamper: verifikasi role dalam session
+            if (session.roleToken && !verifyRoleInSession(found.id, found.jabatan, session.roleToken)) {
+              console.warn('[Security] Role user telah dimanipulasi! Logout paksa.');
+              localStorage.removeItem('smpjdc_session');
+              setAuthenticated(false);
+              return;
+            }
             setCurrentUser(found);
             setAuthenticated(true);
             setShowSplash(true);
@@ -377,6 +398,7 @@ export default function App() {
           delete u.pin;
         });
         localStorage.setItem('sapujagat_users', JSON.stringify(parsed));
+        signUserData(parsed);
         return parsed;
       }
 
@@ -403,6 +425,7 @@ export default function App() {
       const merged = Object.values(existingMap);
 
       localStorage.setItem('sapujagat_users', JSON.stringify(merged));
+      signUserData(merged);
       localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
       return merged;
     } catch (e) {
@@ -558,6 +581,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('sapujagat_users', JSON.stringify(users));
+      signUserData(users);
     } catch (e) {
       console.error('Failed to save users to localStorage', e);
     }
@@ -937,6 +961,11 @@ export default function App() {
     addToast(`Anggota baru ${newUser.nama} (${newUser.jabatan}) berhasil didaftarkan!`, 'success');
   };
 
+  const handleUpdateUser = (userId, updates) => {
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+    addToast(`Data user berhasil diperbarui!`, 'success');
+  };
+
   const handleLogin = (user) => {
     setCurrentUser(user);
     setAuthenticated(true);
@@ -1092,7 +1121,7 @@ export default function App() {
           {isGodMode && (
             <>
               <button onClick={() => handleNavClick('dashboard')} className={`nav-tab-btn ${currentTab === 'dashboard' ? 'active' : ''}`}>
-                <LayoutDashboard size={18} /> <span>Dashboard Admin</span>
+                <LayoutDashboard size={18} /> <span>Dashboard Utama</span>
               </button>
               <button onClick={() => handleNavClick('absensi')} className={`nav-tab-btn ${currentTab === 'absensi' ? 'active' : ''}`}>
                 <ClipboardList size={18} /> <span>Absensi & Plotting</span>
@@ -1129,7 +1158,7 @@ export default function App() {
           {isAdmin && !isClient && !isGodMode && (
             <>
               <button onClick={() => handleNavClick('dashboard')} className={`nav-tab-btn ${currentTab === 'dashboard' ? 'active' : ''}`}>
-                <LayoutDashboard size={18} /> <span>Dashboard Admin</span>
+                <LayoutDashboard size={18} /> <span>Dashboard Management</span>
               </button>
               <button onClick={() => handleNavClick('absensi')} className={`nav-tab-btn ${currentTab === 'absensi' ? 'active' : ''}`}>
                 <ClipboardList size={18} /> <span>Absensi & Plotting</span>
@@ -1317,7 +1346,7 @@ export default function App() {
           )}
 
           {currentTab === 'user-management' && isSuperAdmin && (
-            <UserManagement users={users} onAddUser={handleAddUser} />
+            <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} />
           )}
 
           {currentTab === 'backup' && isSuperAdmin && (

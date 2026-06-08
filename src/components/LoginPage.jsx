@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, User, Lock, Eye, EyeOff, Smartphone, Building, Clock } from 'lucide-react';
-import { hashPin, verifyPin, createSession, getLoginAttempts, recordLoginAttempt } from '../utils/security';
+import { hashPin, verifyPin, createSession, getLoginAttempts, recordLoginAttempt, signRoleInSession, signUserData } from '../utils/security';
 
 export default function LoginPage({ onLogin, onSetup, hasUsers }) {
   const [nrp, setNrp] = useState('');
@@ -54,6 +54,7 @@ export default function LoginPage({ onLogin, onSetup, hasUsers }) {
 
       recordLoginAttempt(nrp.trim(), true);
       const session = createSession(user.id);
+      session.roleToken = signRoleInSession(user.id, user.jabatan);
       localStorage.setItem('smpjdc_session', JSON.stringify(session));
       onLogin(user);
       setLoading(false);
@@ -93,8 +94,10 @@ export default function LoginPage({ onLogin, onSetup, hasUsers }) {
       };
       
       localStorage.setItem('sapujagat_users', JSON.stringify([newUser]));
+      signUserData([newUser]);
       localStorage.setItem(`smpjdc_pin_${newUser.id}`, hashed);
       const session = createSession(newUser.id);
+      session.roleToken = signRoleInSession(newUser.id, newUser.jabatan);
       localStorage.setItem('smpjdc_session', JSON.stringify(session));
       
       onSetup(newUser);
