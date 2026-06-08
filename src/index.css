@@ -165,7 +165,12 @@ h1, h2, h3, h4, h5, h6 {
   height: 100vh;
   z-index: 50;
   transition: var(--transition-smooth);
+  overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: none;
+}
+.sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .main-content {
@@ -3309,8 +3314,7 @@ h1, h2, h3, h4, h5, h6 {
 .sidebar-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-primary); flex-shrink: 0; }
 .sidebar-user h4 { font-size: 0.85rem; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
 .sidebar-user p { font-size: 0.7rem; color: var(--text-secondary); }
-.sidebar-nav { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; overflow-y: auto; scrollbar-width: none; }
-.sidebar-nav::-webkit-scrollbar { display: none; }
+.sidebar-nav { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
 .sidebar-footer { padding: 0.75rem 0; border-top: 1px solid var(--border-glass); display: flex; flex-direction: column; gap: 0.3rem; flex-shrink: 0; }
 .sidebar-footer-info { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); }
 .sidebar-footer-copy { font-size: 0.65rem; color: var(--text-muted); opacity: 0.7; }
