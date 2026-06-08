@@ -62,7 +62,7 @@ import ComplaintAdmin from './components/ComplaintAdmin';
 import BottomNav from './components/BottomNav';
 
 const DB_VERSION_KEY = 'smpjdc_db_version';
-const CURRENT_DB_VERSION = '3.2-rileas';
+const CURRENT_DB_VERSION = '4.0-clean';
 
 const INITIAL_AREAS = [
   { id: 'bsmt-b-1', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Basement', nomorTitik: '1', zona: 'B', titik: 'Depan R. Electric', qrCode: 'JDC-BSMT-B-1' },
@@ -414,10 +414,15 @@ export default function App() {
         return parsed;
       }
 
-      // Version mismatch — preserve existing users, clear stale cache
-      localStorage.removeItem(DB_VERSION_KEY);
+      // Version mismatch — bersihkan data seed lama, hanya pertahankan user real
+      const oldSeedNrps = ['20001','20002','20003','20004','20005','20006','20007','20008'];
+      const oldSeedIds = [4,5,6,7,8,9,10,11];
+      const cleaned = Array.isArray(parsed) ? parsed.filter(u => !oldSeedNrps.includes(u.nrp)) : [];
+      oldSeedIds.forEach(id => localStorage.removeItem(`smpjdc_pin_${id}`));
+      localStorage.setItem('sapujagat_users', JSON.stringify(cleaned));
+      signUserData(cleaned);
       localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
-      return parsed || [];
+      return cleaned;
     } catch (e) {
       return [];
     }
