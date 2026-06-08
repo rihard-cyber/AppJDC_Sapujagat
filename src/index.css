@@ -1,40 +1,84 @@
 /* =========================================================
-   CORE STABILIZER - ANTI LOMPAT & ANTI MELEBAR
-   Pastikan kode ini berada di urutan paling atas CSS kamu!
+   🚀 ULTIMATE ANTI-GRAVITY CSS - OPTIMIZED FOR SMPJDC 🚀
+   Fungsi: Mengunci layout agar 100% statis tanpa merusak responsivitas
    ========================================================= */
 
-/* 1. MENCEGAH LOMPAT KARENA SCROLLBAR (Akar masalah utama) */
+/* 1. KUNCI SCROLLBAR & HTML (Mencegah pergeseran konten antar-tab) */
 html {
-    /* Memaksa ruang scrollbar selalu disiapkan. 
-       Jadi saat pindah halaman panjang ke pendek, web tidak geser ke kiri/kanan */
     scrollbar-gutter: stable !important; 
-    overflow-y: scroll !important; /* Fallback untuk browser lama */
+    overflow-y: scroll !important; 
+    overflow-x: hidden !important;
 }
 
-/* 2. MENGUNCI UKURAN ELEMEN (Anti-Melebar ke samping) */
-*, *::before, *::after {
-    /* Memastikan padding dan border dihitung KE DALAM ukuran elemen, 
-       bukan menambah lebar ke luar */
-    box-sizing: border-box !important;
-}
-
-/* 3. STABILISATOR BODY & MENCEGAH SCROLL HORIZONTAL */
 body {
     margin: 0;
     padding: 0;
     width: 100%;
     max-width: 100vw;
-    /* Mencegah halaman bisa digeser ke kiri/kanan (melebar) secara tidak sengaja */
     overflow-x: hidden !important; 
+    position: relative;
 }
 
-/* 4. MENCEGAH LOMPAT SAAT MENU/TOMBOL DIKLIK (Focus & Active States) */
-a, button, .nav-link, .menu-item, [role="button"] {
-    /* Mencegah munculnya border biru/hitam bawaan browser saat diklik 
-       yang sering membuat elemen membesar 1-2px dan mendorong layout */
+/* 2. KUNCI UKURAN BOX (Mencegah elemen keluar dari grid) */
+*, *::before, *::after {
+    box-sizing: border-box !important;
+}
+
+/* 3. KUNCI INTERAKSI ELEMEN & NAVIGASI */
+a, button, input, select, textarea, .nav-link, .menu-item, [role="button"] {
     outline: none !important;
-    -webkit-tap-highlight-color: transparent !important; /* Hilangkan blok warna saat ditap di HP */
-    box-shadow: none !important; /* Opsional: matikan shadow saat diklik jika bikin melar */
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+a:focus-visible, button:focus-visible {
+    outline: 2px solid rgba(59, 130, 246, 0.5) !important; 
+    outline-offset: -2px !important;
+}
+
+/* 4. KUNCI DROPDOWN (Agar melayang secara absolut) */
+.dropdown, .relative, .dropdown-container, [data-te-dropdown-ref] {
+    position: relative !important;
+}
+
+.dropdown-menu, .menu-dropdown, [role="menu"] {
+    position: absolute !important;
+    z-index: 99999 !important;
+    top: 100% !important;
+    margin-top: 4px !important;
+    max-width: 100vw; 
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 5. KUNCI LEBAR BADGE STATUS (Ukuran aman untuk Mobile & Desktop) */
+.btn-status, button[id*="status"], select[id*="status"], .status-badge {
+    min-width: 110px !important; /* Lebar minimum optimal agar teks tidak patah */
+    display: inline-flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+}
+
+/* 6. PROTEKSI MEDIA & TABEL */
+img, svg, video, canvas {
+    max-width: 100% !important;
+    height: auto;
+}
+
+/* Penanganan tabel adaptif */
+table {
+    max-width: 100% !important;
+    width: 100%;
+}
+
+table.table-fixed {
+    table-layout: fixed !important;
+}
+
+table td, table th {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
 }
 
 /* SMPJDC - SISTEM MANAGEMENT KEAMANAN JDC: Modern Design Tokens & Styling */
