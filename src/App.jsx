@@ -20,7 +20,7 @@ import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateCompl
   subscribeFindings, addFindingToFirestore, updateFindingInFirestore,
   subscribeAttendanceLogs, addAttendanceLogToFirestore, updateAttendanceLogInFirestore,
   subscribeMutasiLogs, addMutasiLogToFirestore, updateMutasiLogInFirestore, deleteMutasiLogFromFirestore,
-  subscribeUsers, addUserToFirestore, updateUserInFirestore, resetUsersInFirestore,
+  subscribeUsers, addUserToFirestore, updateUserInFirestore, deleteUserFromFirestore, resetUsersInFirestore,
   clearAllPatrolDataInFirestore } from './utils/firebase';
 import { 
   LayoutDashboard, 
@@ -944,12 +944,10 @@ export default function App() {
   };
 
   const handleAddComplaint = (complaint) => {
-    console.log('[Complaint] handleAddComplaint dipanggil:', complaint?.ticketId);
     setComplaints(prev => {
       const updated = [complaint, ...prev];
       try {
         localStorage.setItem('smpjdc_complaints', JSON.stringify(updated));
-        console.log('[Complaint] localStorage tersimpan, total:', updated.length);
       } catch (e) {
         console.warn('[Complaint] Gagal simpan ke localStorage:', e);
       }
@@ -1002,6 +1000,9 @@ export default function App() {
       nrp: newUser.nrp,
       jabatan: newUser.jabatan,
       regu: newUser.regu || '',
+      shift: newUser.shift || 'Pagi',
+      nomorHp: newUser.nomorHp || '',
+      status: newUser.status || 'Aktif',
       avatar: newUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&auto=format&fit=crop&q=60',
       email: newUser.email || ''
     };
@@ -1031,6 +1032,18 @@ export default function App() {
       setCurrentUser(prev => ({ ...prev, ...updates }));
     }
     addToast(`Data user berhasil diperbarui!`, 'success');
+  };
+
+  const handleDeleteUser = (userId) => {
+    if (!window.confirm(`Yakin ingin menghapus user ini? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setUsers(prev => {
+      const user = prev.find(u => u.id === userId);
+      if (user && user.firebaseId) {
+        deleteUserFromFirestore(user.firebaseId);
+      }
+      return prev.filter(u => u.id !== userId);
+    });
+    addToast('User berhasil dihapus!', 'success');
   };
 
   const handleResetUsers = async () => {
@@ -1520,7 +1533,7 @@ export default function App() {
           )}
 
           {currentTab === 'user-management' && isSuperAdmin && (
-            <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} />
+            <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
           )}
 
           {currentTab === 'backup' && isSuperAdmin && (

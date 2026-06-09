@@ -172,6 +172,8 @@ export const addUserToFirestore = createAdder('users');
 
 export const updateUserInFirestore = createUpdater('users');
 
+export const deleteUserFromFirestore = createDeleter('users');
+
 export const resetUsersInFirestore = async (defaultUsers) => {
   const database = initFirebase();
   if (!database) return false;

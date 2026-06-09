@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, User, Shield, Smartphone, Hash, Users, Search, ChevronDown, ChevronRight, Save, MessageSquare, Edit3, X, Check } from 'lucide-react';
+import { UserPlus, User, Shield, Smartphone, Hash, Users, Search, ChevronDown, ChevronRight, Save, MessageSquare, Edit3, X, Check, Trash2 } from 'lucide-react';
 import { getWAContacts, saveWAContacts } from '../data/waContacts';
 
 const ROLE_OPTIONS = [
@@ -18,7 +18,7 @@ const ROLE_COLORS = {
   'Guest Viewer': '#8b5cf6'
 };
 
-export default function UserManagement({ users, onAddUser, onUpdateUser }) {
+export default function UserManagement({ users, onAddUser, onUpdateUser, onDeleteUser }) {
   const [reguPilih, setReguPilih] = useState('Regu B');
   const [reguKustom, setReguKustom] = useState('');
   const [anggotaInput, setAnggotaInput] = useState('');
@@ -359,9 +359,14 @@ export default function UserManagement({ users, onAddUser, onUpdateUser }) {
                   )}
                   
                   {editingUser !== u.id && (
-                    <button onClick={() => { setEditingUser(u.id); setEditRole(u.jabatan); setEditRegu(u.regu || '-'); }} style={{ padding: '0.25rem', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', opacity: 0.6, transition: 'opacity 0.2s', flexShrink: 0 }} title="Ubah role/regu">
-                      <Edit3 size={12}/>
-                    </button>
+                    <>
+                      <button onClick={() => { setEditingUser(u.id); setEditRole(u.jabatan); setEditRegu(u.regu || '-'); }} style={{ padding: '0.25rem', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', opacity: 0.6, transition: 'opacity 0.2s', flexShrink: 0 }} title="Ubah role/regu">
+                        <Edit3 size={12}/>
+                      </button>
+                      <button onClick={() => onDeleteUser && onDeleteUser(u.id)} style={{ padding: '0.25rem', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-danger)', cursor: 'pointer', opacity: 0.5, transition: 'opacity 0.2s', flexShrink: 0 }} title="Hapus user">
+                        <Trash2 size={12}/>
+                      </button>
+                    </>
                   )}
                 </div>
               ))}

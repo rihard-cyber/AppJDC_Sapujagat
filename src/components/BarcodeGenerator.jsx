@@ -9,7 +9,7 @@
  * =======================================================
  */
 
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { 
   Plus, 
   Download, 
@@ -21,8 +21,11 @@ import {
   UserCheck,
   Phone,
   Hash,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
+
+import QRCode from 'qrcode';
 
 const FLOOR_OPTIONS = [
   { value: 'Basement', label: 'Basement' },
@@ -119,8 +122,9 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, a
   const [bulkCount, setBulkCount] = useState(100);
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState(0);
-  const [bulkDownloadReady, setBulkDownloadReady] = useState(false);
+
   const [downloadingId, setDownloadingId] = useState(null);
+  const [printLoadingId, setPrintLoadingId] = useState(null);
 
   const canvasRef = useRef(null);
 
@@ -144,91 +148,102 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, a
     setTitik('');
   };
 
+  const generateQRDataURL = useCallback(async (text) => {
+    try {
+      return await QRCode.toDataURL(text, { width: 400, margin: 2, color: { dark: '#0b0f19', light: '#ffffff' } });
+    } catch {
+      return await QRCode.toDataURL(text, { width: 400, margin: 2 });
+    }
+  }, []);
+
   const handleDownloadQR = async (area) => {
     if (downloadingId) return
     setDownloadingId(area.id)
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(area.qrCode)}`;
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 10000)
-    
+    if (addToast) addToast(`Menyiapkan QR ${area.qrCode}...`, 'info');
     try {
-      const response = await fetch(qrUrl, { signal: controller.signal });
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
+      const dataUrl = await generateQRDataURL(area.qrCode);
       const link = document.createElement('a');
       link.download = `${area.qrCode}.png`;
-      link.href = objectUrl;
+      link.href = dataUrl;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
       if (addToast) addToast(`QR ${area.qrCode} berhasil didownload`, 'success');
     } catch (err) {
       console.error('Download QR failed:', err);
       if (addToast) addToast('Gagal download QR, coba lagi', 'danger');
     } finally {
-      clearTimeout(timeout)
       setDownloadingId(null)
     }
   };
 
-  const handlePrintQR = (area) => {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(area.qrCode)}`;
-    
+  const handlePrintQR = async (area) => {
+    if (printLoadingId) return
+    setPrintLoadingId(area.id)
     const printWin = window.open('', '_blank', 'width=400,height=600');
     if (!printWin || printWin.closed || typeof printWin.closed === 'undefined') {
       if (addToast) addToast('Izinkan popup untuk mencetak barcode', 'warning');
       else alert('Izinkan popup untuk mencetak barcode, atau cetak manual.');
+      setPrintLoadingId(null)
       return;
     }
     if (addToast) addToast('Menyiapkan cetak QR...', 'info');
-    printWin.document.write(`
-      <html>
-        <head>
-          <title>Cetak QR Checkpoint - ${area.qrCode}</title>
-          <style>
-            body {
-              font-family: 'Inter', sans-serif;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              min-height: 100vh;
-              margin: 0;
-              padding: 20px;
-              box-sizing: border-box;
-              text-align: center;
-              color: #0b0f19;
-            }
-            .qr-card {
-              border: 3px double #0b0f19;
-              padding: 25px;
-              border-radius: 12px;
-              display: inline-block;
-              background: #fff;
-            }
-            img { width: 280px; height: 280px; margin-bottom: 15px; }
-            h2 { margin: 0 0 5px 0; font-size: 22px; letter-spacing: 1px; }
-            p { margin: 0; font-size: 14px; color: #555; }
-            @media print { body { -webkit-print-color-adjust: exact; } }
-          </style>
-        </head>
-        <body>
-          <div class="qr-card">
-            <img src="${qrUrl}" alt="QR Checkpoint" />
-            <h2>${area.qrCode}</h2>
-            <p style="font-weight: bold; margin-bottom: 4px;">${area.titik}</p>
-            <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
-          </div>
-          <p style="margin-top: 20px; font-size: 12px; color: #999;">Tutup jendela ini setelah mencetak.</p>
-          <script>window.onload=function(){setTimeout(function(){window.print();},500)};<\/script>
-        </body>
-      </html>
-    `);
-    printWin.document.close();
+    try {
+      const dataUrl = await generateQRDataURL(area.qrCode);
+      printWin.document.write(`
+        <html>
+          <head>
+            <title>Cetak QR Checkpoint - ${area.qrCode}</title>
+            <style>
+              body {
+                font-family: 'Inter', sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                padding: 20px;
+                box-sizing: border-box;
+                text-align: center;
+                color: #0b0f19;
+              }
+              .qr-card {
+                border: 3px double #0b0f19;
+                padding: 25px;
+                border-radius: 12px;
+                display: inline-block;
+                background: #fff;
+              }
+              img { width: 280px; height: 280px; margin-bottom: 15px; }
+              h2 { margin: 0 0 5px 0; font-size: 22px; letter-spacing: 1px; }
+              p { margin: 0; font-size: 14px; color: #555; }
+              @media print { body { -webkit-print-color-adjust: exact; } }
+            </style>
+          </head>
+          <body>
+            <div class="qr-card">
+              <img src="${dataUrl}" alt="QR Checkpoint" />
+              <h2>${area.qrCode}</h2>
+              <p style="font-weight: bold; margin-bottom: 4px;">${area.titik}</p>
+              <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
+            </div>
+            <p style="margin-top: 20px; font-size: 12px; color: #999;">Tutup jendela ini setelah mencetak.</p>
+            <script>window.onload=function(){setTimeout(function(){window.print();},500)};<\/script>
+          </body>
+        </html>
+      `);
+      printWin.document.close();
+    } catch (err) {
+      console.error('Print QR failed:', err);
+      if (addToast) addToast('Gagal menyiapkan QR untuk cetak', 'danger');
+      printWin.close();
+    } finally {
+      setPrintLoadingId(null)
+    }
   };
 
-  const handlePrintAllQRs = () => {
+  const handlePrintAllQRs = async () => {
     if (areas.length === 0) {
       if (addToast) addToast('Tidak ada master area untuk dicetak!', 'warning');
       else alert('Tidak ada master area untuk dicetak!');
@@ -243,72 +258,83 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, a
     }
     if (addToast) addToast('Menyiapkan cetak semua QR...', 'info');
     
-    let htmlContent = `
-      <html>
-        <head>
-          <title>Cetak Semua QR Checkpoint SMPJDC</title>
-          <style>
-            body {
-              font-family: 'Inter', sans-serif;
-              margin: 0;
-              padding: 0;
-              background: #fff;
-              color: #0b0f19;
-            }
-            .print-page {
-              page-break-after: always;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              min-height: 100vh;
-              box-sizing: border-box;
-              text-align: center;
-              padding: 40px;
-            }
-            .qr-card {
-              border: 4px double #0b0f19;
-              padding: 30px;
-              border-radius: 16px;
-              display: inline-block;
-              background: #fff;
-            }
-            img { width: 320px; height: 320px; margin-bottom: 20px; }
-            h2 { margin: 0 0 8px 0; font-size: 26px; letter-spacing: 1px; }
-            p { margin: 0; font-size: 16px; color: #444; }
-            .print-page:last-child { page-break-after: avoid; }
-            @media print { body { -webkit-print-color-adjust: exact; } }
-          </style>
-        </head>
-        <body>
-    `;
+    try {
+      const qrDataUrls = await Promise.all(
+        areas.map(async (area) => {
+          return { area, dataUrl: await generateQRDataURL(area.qrCode) };
+        })
+      );
     
-    areas.forEach(area => {
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(area.qrCode)}`;
-      htmlContent += `
-        <div class="print-page">
-          <div class="qr-card">
-            <img src="${qrUrl}" alt="QR" />
-            <h2>${area.qrCode}</h2>
-            <p style="font-weight: bold; margin-bottom: 5px;">${area.titik}</p>
-            <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
-          </div>
-        </div>
+      let htmlContent = `
+        <html>
+          <head>
+            <title>Cetak Semua QR Checkpoint SMPJDC</title>
+            <style>
+              body {
+                font-family: 'Inter', sans-serif;
+                margin: 0;
+                padding: 0;
+                background: #fff;
+                color: #0b0f19;
+              }
+              .print-page {
+                page-break-after: always;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                box-sizing: border-box;
+                text-align: center;
+                padding: 40px;
+              }
+              .qr-card {
+                border: 4px double #0b0f19;
+                padding: 30px;
+                border-radius: 16px;
+                display: inline-block;
+                background: #fff;
+              }
+              img { width: 320px; height: 320px; margin-bottom: 20px; }
+              h2 { margin: 0 0 8px 0; font-size: 26px; letter-spacing: 1px; }
+              p { margin: 0; font-size: 16px; color: #444; }
+              .print-page:last-child { page-break-after: avoid; }
+              @media print { body { -webkit-print-color-adjust: exact; } }
+            </style>
+          </head>
+          <body>
       `;
-    });
-    
-    htmlContent += `
-      <script>
-        window.onload = function() {
-          setTimeout(function() { window.print(); }, 1500);
-        };
-      <\/script>
-        </body>
-      </html>
-    `;
-    
-    printWin.document.write(htmlContent);
-    printWin.document.close();
+      
+      qrDataUrls.forEach(({ area, dataUrl }) => {
+        htmlContent += `
+          <div class="print-page">
+            <div class="qr-card">
+              <img src="${dataUrl}" alt="QR" />
+              <h2>${area.qrCode}</h2>
+              <p style="font-weight: bold; margin-bottom: 5px;">${area.titik}</p>
+              <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
+            </div>
+          </div>
+        `;
+      });
+      
+      htmlContent += `
+        <script>
+          window.onload = function() {
+            setTimeout(function() { window.print(); }, 1500);
+          };
+        <\/script>
+          </body>
+        </html>
+      `;
+      
+      printWin.document.write(htmlContent);
+      printWin.document.close();
+    } catch (err) {
+      console.error('Print all QR failed:', err);
+      if (addToast) addToast('Gagal menyiapkan QR untuk cetak', 'danger');
+      printWin.close();
+    }
   };
 
   const handleBulkGenerate = async () => {
@@ -323,16 +349,13 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, a
       const area = areasToGenerate[i];
       const qrData = area.qrCode || `JDC-${area.zona || 'X'}-${area.nomorTitik}`;
       try {
-        const resp = await fetch(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`);
-        const blob = await resp.blob();
-        const url = URL.createObjectURL(blob);
+        const dataUrl = await generateQRDataURL(qrData);
         const link = document.createElement('a');
-        link.href = url;
+        link.href = dataUrl;
         link.download = `QR-${qrData.replace(/[^a-zA-Z0-9]/g, '-')}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(url);
       } catch (e) {
         console.warn('Gagal download QR untuk', qrData, e);
       }
@@ -599,7 +622,7 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, a
                     <td style={{ textAlign: 'right' }}>
                       <div className="btn-group" style={{ justifyContent: 'flex-end' }}>
                         <button onClick={() => handleDownloadQR(area)} title="Download Barcode PNG" className="btn-icon-primary" data-no-ripple>{downloadingId === area.id ? <RefreshCw size={14} className="spin" /> : <Download size={14} />}</button>
-                        <button onClick={() => handlePrintQR(area)} title="Cetak Stiker Barcode" className="btn-icon" data-no-ripple><Printer size={14} /></button>
+                        <button onClick={() => handlePrintQR(area)} title="Cetak Stiker Barcode" className="btn-icon" data-no-ripple>{printLoadingId === area.id ? <RefreshCw size={14} className="spin" /> : <Printer size={14} />}</button>
                       </div>
                     </td>
                   </tr>

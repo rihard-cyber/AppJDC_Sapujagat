@@ -78,9 +78,7 @@ export default function SecurityPatrolApp({
   useEffect(() => {
     if (step === 2) {
       setScanning(true);
-      getGPSCoordinates().then(coords => {
-        console.log('GPS coordinates pre-fetched and warmed up:', coords);
-      });
+      getGPSCoordinates().then(() => {});
     } else {
       setScanning(false);
     }

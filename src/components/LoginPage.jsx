@@ -69,7 +69,7 @@ export default function LoginPage({ onLogin, onSetup, hasUsers }) {
       setError('Semua field harus diisi');
       return;
     }
-    if (setupPin.length < 4) {
+    if (setupPin.length < 6) {
       setError('PIN minimal 6 karakter');
       return;
     }

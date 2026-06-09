@@ -128,7 +128,6 @@ export default function ComplaintForm({ onAddComplaint }) {
       const existing = JSON.parse(localStorage.getItem('smpjdc_complaints') || '[]');
       existing.unshift(complaint);
       localStorage.setItem('smpjdc_complaints', JSON.stringify(existing));
-      console.log('[Form] Komplain disimpan langsung ke localStorage, total:', existing.length);
     } catch (e) {
       console.warn('[Form] Gagal simpan langsung:', e);
     }
