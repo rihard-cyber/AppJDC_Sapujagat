@@ -1026,7 +1026,7 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
                         width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
                         background: `${sc}18`, display: 'flex', alignItems: 'center', justifyContent: 'center'
                       }}>
-                        <MessageSquare size={14} color={sc}/>
+                        <MessageCircle size={14} color={sc}/>
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
