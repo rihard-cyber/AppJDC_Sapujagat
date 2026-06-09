@@ -18,7 +18,7 @@ const ROLE_COLORS = {
   'Guest Viewer': '#8b5cf6'
 };
 
-export default function UserManagement({ users, onAddUser, onUpdateUser, onDeleteUser }) {
+export default function UserManagement({ users, currentUser, onAddUser, onUpdateUser, onDeleteUser }) {
   const [reguPilih, setReguPilih] = useState('Regu B');
   const [reguKustom, setReguKustom] = useState('');
   const [anggotaInput, setAnggotaInput] = useState('');
@@ -30,6 +30,10 @@ export default function UserManagement({ users, onAddUser, onUpdateUser, onDelet
   const [editRegu, setEditRegu] = useState('');
   const [waContacts, setWaContacts] = useState(() => getWAContacts());
   const [saveStatus, setSaveStatus] = useState('');
+
+  const allowedRoles = currentUser?.jabatan === 'Admin Super'
+    ? ROLE_OPTIONS
+    : ROLE_OPTIONS.filter(r => r !== 'Admin Super');
 
   const updateWAField = (dept, field, value) => {
     setWaContacts(prev => ({
@@ -79,7 +83,15 @@ export default function UserManagement({ users, onAddUser, onUpdateUser, onDelet
     setAnggotaInput('');
   };
 
-  const filteredUsers = users.filter(u =>
+  const visibleUsers = users.filter(u => {
+    // Sembunyikan 'Admin Super' dari seluruh role selain 'Admin Super' itu sendiri
+    if (currentUser?.jabatan !== 'Admin Super' && u.jabatan === 'Admin Super') {
+      return false;
+    }
+    return true;
+  });
+
+  const filteredUsers = visibleUsers.filter(u =>
     u.nama.toLowerCase().includes(search.toLowerCase()) ||
     u.nrp.toLowerCase().includes(search.toLowerCase()) ||
     u.jabatan.toLowerCase().includes(search.toLowerCase()) ||
@@ -110,6 +122,41 @@ export default function UserManagement({ users, onAddUser, onUpdateUser, onDelet
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <style>{`
+        .user-action-btn {
+          padding: 0.35rem;
+          border-radius: 6px;
+          border: 1px solid transparent;
+          background: transparent;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .user-action-btn:hover {
+          border-color: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.05);
+        }
+        .user-action-btn.edit {
+          color: #94a3b8;
+        }
+        .user-action-btn.edit:hover {
+          color: #3b82f6;
+          border-color: rgba(59, 130, 246, 0.2);
+          background: rgba(59, 130, 246, 0.1);
+          box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+        }
+        .user-action-btn.delete {
+          color: #ef4444;
+        }
+        .user-action-btn.delete:hover {
+          color: #f87171;
+          background: rgba(239, 68, 68, 0.1);
+          border-color: rgba(239, 68, 68, 0.2);
+          box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+        }
+      `}</style>
       {/* Form Tambah Anggota per Regu */}
       <div className="glass-panel" style={{ padding: '1.5rem' }}>
         <h3 style={{ fontSize: '1.05rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -137,7 +184,7 @@ export default function UserManagement({ users, onAddUser, onUpdateUser, onDelet
               <div className="login-input-wrap">
                 <Shield size={16} />
                 <select value={role} onChange={e => setRole(e.target.value)} className="modern-select" style={{ flex: 1, border: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: '0.8rem', padding: '0.45rem 0' }}>
-                  {ROLE_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  {allowedRoles.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
             </div>
@@ -299,7 +346,7 @@ export default function UserManagement({ users, onAddUser, onUpdateUser, onDelet
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
           <h3 style={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Users size={18} className="text-primary" />
-            <span>Daftar User ({users.length})</span>
+            <span>Daftar User ({visibleUsers.length})</span>
           </h3>
           <div className="login-input-wrap" style={{ width: '220px', maxWidth: '100%' }}>
             <Search size={14} />
@@ -330,7 +377,7 @@ export default function UserManagement({ users, onAddUser, onUpdateUser, onDelet
                     <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
                       <span style={{ fontWeight: 600, fontSize: '0.82rem', marginRight: '0.5rem' }}>{u.nama}</span>
                       <select value={editRole} onChange={e => setEditRole(e.target.value)} className="modern-select" style={{ fontSize: '0.65rem', padding: '0.2rem 0.4rem', border: '1px solid var(--border-glass)', borderRadius: '4px', background: 'transparent', color: 'var(--text-primary)' }}>
-                        {ROLE_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                        {allowedRoles.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
                       <select value={editRegu} onChange={e => setEditRegu(e.target.value)} className="modern-select" style={{ fontSize: '0.65rem', padding: '0.2rem 0.4rem', border: '1px solid var(--border-glass)', borderRadius: '4px', background: 'transparent', color: 'var(--text-primary)' }}>
                         {REGU_PRESETS.map(r => <option key={r} value={r}>{r}</option>)}
@@ -359,14 +406,27 @@ export default function UserManagement({ users, onAddUser, onUpdateUser, onDelet
                   )}
                   
                   {editingUser !== u.id && (
-                    <>
-                      <button onClick={() => { setEditingUser(u.id); setEditRole(u.jabatan); setEditRegu(u.regu || '-'); }} style={{ padding: '0.25rem', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', opacity: 0.6, transition: 'opacity 0.2s', flexShrink: 0 }} title="Ubah role/regu">
-                        <Edit3 size={12}/>
+                    <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
+                      <button 
+                        onClick={() => { 
+                          console.log("Editing user:", u.id, u.jabatan, u.regu);
+                          setEditingUser(u.id); 
+                          setEditRole(u.jabatan); 
+                          setEditRegu(u.regu || '-'); 
+                        }} 
+                        className="user-action-btn edit" 
+                        title="Ubah role/regu"
+                      >
+                        <Edit3 size={16}/>
                       </button>
-                      <button onClick={() => onDeleteUser && onDeleteUser(u.id)} style={{ padding: '0.25rem', borderRadius: '4px', border: 'none', background: 'transparent', color: 'var(--color-danger)', cursor: 'pointer', opacity: 0.5, transition: 'opacity 0.2s', flexShrink: 0 }} title="Hapus user">
-                        <Trash2 size={12}/>
+                      <button 
+                        onClick={() => onDeleteUser && onDeleteUser(u.id)} 
+                        className="user-action-btn delete" 
+                        title="Hapus user"
+                      >
+                        <Trash2 size={16}/>
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               ))}

@@ -1427,6 +1427,9 @@ export default function App() {
               <button onClick={() => handleNavClick('complaint')} className={`nav-tab-btn ${currentTab === 'complaint' ? 'active' : ''}`}>
                 <MessageSquare size={18} /> <span>Komplain Masuk</span>
               </button>
+              <button onClick={() => handleNavClick('user-management')} className={`nav-tab-btn ${currentTab === 'user-management' ? 'active' : ''}`}>
+                <Users size={18} /> <span>Management User</span>
+              </button>
             </>
           )}
 
@@ -1609,8 +1612,8 @@ export default function App() {
             </div>
           )}
 
-          {currentTab === 'user-management' && isSuperAdmin && (
-            <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
+          {currentTab === 'user-management' && (isGodMode || isAdmin) && (
+            <UserManagement users={users} currentUser={currentUser} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
           )}
 
           {currentTab === 'backup' && isSuperAdmin && (
