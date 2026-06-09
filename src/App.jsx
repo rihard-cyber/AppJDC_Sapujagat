@@ -63,7 +63,7 @@ import ComplaintAdmin from './components/ComplaintAdmin';
 import BottomNav from './components/BottomNav';
 
 const DB_VERSION_KEY = 'smpjdc_db_version';
-const CURRENT_DB_VERSION = '5.1-stable';
+const CURRENT_DB_VERSION = '5.2-stable';
 
 const INITIAL_AREAS = [
   { id: 'bsmt-b-1', gedung: 'SMPJDC - Jakarta Design Center', lantai: 'Basement', nomorTitik: '1', zona: 'B', titik: 'Depan R. Electric', qrCode: 'JDC-BSMT-B-1' },
