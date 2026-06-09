@@ -3435,6 +3435,13 @@ h1, h2, h3, h4, h5, h6 {
   display: flex; align-items: center; gap: 0.5rem;
   animation: slide-in 0.2s ease-out;
 }
+.offline-banner {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 9999; background: var(--color-danger);
+  color: #fff; text-align: center; padding: 0.5rem 1rem;
+  font-size: 0.8rem; font-weight: 600;
+  box-shadow: 0 2px 8px rgba(239,68,68,0.4);
+}
 
 /* Responsive: 1 kolom di mobile */
 @media (max-width: 768px) {

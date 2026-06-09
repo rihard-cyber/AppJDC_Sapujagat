@@ -140,6 +140,7 @@ export default function App() {
   const [activeSOS, setActiveSOS] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [sosAudio, setSosAudio] = useState(null);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   // Profile & Email Verification State
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -174,6 +175,24 @@ export default function App() {
       setVerifError('');
     }
   }, [showProfileModal, currentUser]);
+
+  // Real network detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      addToast('Koneksi internet tersambung kembali', 'success');
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      addToast('Koneksi internet terputus! Data mungkin tidak tersimpan', 'danger');
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleSendVerification = () => {
     if (!newEmail.includes('@') || !newEmail.includes('.')) {
@@ -849,7 +868,7 @@ export default function App() {
           r.id === reportId ? { ...r, firebaseId } : r
         ));
       }
-    });
+    }).catch(e => console.warn('[Firebase] Gagal simpan laporan:', e));
 
     if (newReport.kondisi !== 'Aman dan Kondusif' && newReport.kondisi !== 'Ada Aktivitas' && newReport.kondisi !== 'Renovasi') {
       const findingId = `find-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -876,7 +895,7 @@ export default function App() {
             f.id === findingId ? { ...f, firebaseId } : f
           ));
         }
-      });
+      }).catch(e => console.warn('[Firebase] Gagal simpan temuan:', e));
       addToast(`⚠️ Tiket temuan otomatis dibuat untuk ${dept} [Severity: ${newReport.severity || 'Rendah'}]`, 'warning');
     }
   };
@@ -888,7 +907,7 @@ export default function App() {
         addToast(`Status temuan ${f.kategori} diubah ke ${newStatus}`, 'info');
         updatedFinding = { ...f, status: newStatus };
         if (updatedFinding.firebaseId) {
-          updateFindingInFirestore(updatedFinding.firebaseId, { status: newStatus });
+          updateFindingInFirestore(updatedFinding.firebaseId, { status: newStatus }).catch(e => console.warn('[Firebase] Gagal update status temuan:', e));
         }
         return updatedFinding;
       }
@@ -912,7 +931,7 @@ export default function App() {
             department: dept,
             waStatus: `Terkirim (${dept})`,
             waSentAt: updatedFinding.waSentAt
-          });
+          }).catch(e => console.warn('[Firebase] Gagal disposisi temuan:', e));
         }
         return updatedFinding;
       }
@@ -930,7 +949,7 @@ export default function App() {
           m.id === id ? { ...m, firebaseId } : m
         ));
       }
-    });
+    }).catch(e => console.warn('[Firebase] Gagal simpan mutasi:', e));
     addToast('Catatan mutasi berhasil disimpan', 'success');
   };
 
@@ -938,7 +957,7 @@ export default function App() {
     const target = mutasiLogs.find(l => l.id === id);
     setMutasiLogs(prev => prev.filter(l => l.id !== id));
     if (target?.firebaseId) {
-      deleteMutasiLogFromFirestore(target.firebaseId);
+      deleteMutasiLogFromFirestore(target.firebaseId).catch(e => console.warn('[Firebase] Gagal hapus mutasi:', e));
     }
     addToast('Catatan mutasi dihapus', 'info');
   };
@@ -962,7 +981,7 @@ export default function App() {
           c.id === complaint.id ? { ...c, firebaseId } : c
         ));
       }
-    });
+    }).catch(e => console.warn('[Firebase] Gagal simpan komplain:', e));
   };
   
   const handleUpdateComplaint = (id, updates) => {
@@ -982,7 +1001,7 @@ export default function App() {
 
     // Firebase sync (background)
     if (target?.firebaseId) {
-      updateComplaintInFirestore(target.firebaseId, updates);
+      updateComplaintInFirestore(target.firebaseId, updates).catch(e => console.warn('[Firebase] Gagal update komplain:', e));
     }
   };
   
@@ -1013,7 +1032,7 @@ export default function App() {
           u.id === userId ? { ...u, firebaseId } : u
         ));
       }
-    });
+    }).catch(e => console.warn('[Firebase] Gagal simpan user:', e));
     if (newUser.pin) {
       localStorage.setItem(`smpjdc_pin_${userId}`, hashPin(newUser.pin));
     }
@@ -1024,7 +1043,7 @@ export default function App() {
     setUsers(prev => {
       const user = prev.find(u => u.id === userId);
       if (user && user.firebaseId) {
-        updateUserInFirestore(user.firebaseId, updates);
+        updateUserInFirestore(user.firebaseId, updates).catch(e => console.warn('[Firebase] Gagal update user:', e));
       }
       return prev.map(u => u.id === userId ? { ...u, ...updates } : u);
     });
@@ -1039,7 +1058,7 @@ export default function App() {
     setUsers(prev => {
       const user = prev.find(u => u.id === userId);
       if (user && user.firebaseId) {
-        deleteUserFromFirestore(user.firebaseId);
+        deleteUserFromFirestore(user.firebaseId).catch(e => console.warn('[Firebase] Gagal hapus user:', e));
       }
       return prev.filter(u => u.id !== userId);
     });
@@ -1490,7 +1509,7 @@ export default function App() {
                     addToast(`Absensi ${newAttendance.regu} (${newAttendance.tanggal}) berhasil diperbarui`, 'success');
                     const fbId = prev[existingIndex].firebaseId;
                     if (fbId) {
-                      updateAttendanceLogInFirestore(fbId, newAttendance);
+                      updateAttendanceLogInFirestore(fbId, newAttendance).catch(e => console.warn('[Firebase] Gagal update absensi:', e));
                     }
                     return updated;
                   } else {
@@ -1501,7 +1520,7 @@ export default function App() {
                           a.id === id ? { ...a, firebaseId } : a
                         ));
                       }
-                    });
+                    }).catch(e => console.warn('[Firebase] Gagal simpan absensi:', e));
                     addToast(`Absensi ${newAttendance.regu} (${newAttendance.tanggal}) berhasil disimpan`, 'success');
                     return [...prev, entry];
                   }
@@ -1831,6 +1850,13 @@ export default function App() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="offline-banner">
+          <span>⚠️ Koneksi terputus — data tidak akan tersimpan sampai koneksi kembali</span>
         </div>
       )}
 

@@ -34,11 +34,24 @@ export default function SecurityPatrolApp({
   currentUser, areas, attendanceLogs = [], reports = [], findings = [], mutasiLogs = [],
   onAddReport, onTriggerSOS, onAddLog
 }) {
-  const [online, setOnline] = useState(true);
+  const [online, setOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [queue, setQueue] = useState(() => {
     try { return JSON.parse(localStorage.getItem('sapujagat_offline_queue')) || []; }
     catch { return []; }
   });
+
+  // Real network detection
+  useEffect(() => {
+    const handleOnline = () => setOnline(true);
+    const handleOffline = () => setOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('sapujagat_offline_queue', JSON.stringify(queue));
@@ -46,14 +59,27 @@ export default function SecurityPatrolApp({
       console.error('Gagal menyimpan antrean offline ke localStorage:', e);
     }
   }, [queue]);
+
+  // Auto-flush queue when online (both on mount and on reconnect)
   useEffect(() => {
     if (online && queue.length > 0) {
-      queue.forEach(item => {
-        const data = item.data || item;
-        if (item.type === 'mutasi') onAddLog(data);
-        else onAddReport(data);
-      });
-      setQueue([]);
+      const flushQueue = async () => {
+        const items = [...queue];
+        for (const item of items) {
+          try {
+            const data = item.data || item;
+            if (item.type === 'mutasi') {
+              await new Promise(resolve => onAddLog(data));
+            } else {
+              await new Promise(resolve => onAddReport(data));
+            }
+          } catch (e) {
+            console.error('Gagal kirim antrean offline:', e);
+          }
+        }
+        setQueue([]);
+      };
+      flushQueue();
     }
   }, [online]);
 
