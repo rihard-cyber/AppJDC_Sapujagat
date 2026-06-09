@@ -801,6 +801,36 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // Live user presence tracking (lastActive) updated periodically (every 60s)
+  useEffect(() => {
+    if (!currentUser || !authenticated) return;
+
+    const updatePresence = () => {
+      const nowStr = new Date().toISOString();
+      
+      // Update local state
+      setUsers(prev => {
+        const updated = prev.map(u => u.id === currentUser.id ? { ...u, lastActive: nowStr } : u);
+        try {
+          localStorage.setItem('sapujagat_users', JSON.stringify(updated));
+          signUserData(updated);
+        } catch (e) {}
+        return updated;
+      });
+
+      // Update Firestore if connected and online
+      if (isOnline && currentUser.firebaseId) {
+        updateUserInFirestore(currentUser.firebaseId, { lastActive: nowStr }).catch(err => {
+          console.warn('[Firebase] Gagal memperbarui kehadiran user:', err);
+        });
+      }
+    };
+
+    updatePresence();
+    const interval = setInterval(updatePresence, 60000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id, authenticated, isOnline]);
+
   const addToast = (message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -1518,6 +1548,9 @@ export default function App() {
               users={users} 
               areas={areas} 
               attendanceLogs={attendanceLogs} 
+              currentUser={currentUser}
+              onUpdateUser={handleUpdateUser}
+              reports={reports}
               onAddAttendance={(newAttendance) => {
                 const id = `att-${Date.now()}`;
                 setAttendanceLogs(prev => {

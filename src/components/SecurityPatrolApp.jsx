@@ -444,6 +444,43 @@ export default function SecurityPatrolApp({
           </div>
         </div>
 
+        {/* Empty Plotting Warning Banner */}
+        {(!todayLog || (todayLog && !myPlotting)) && (
+          <>
+            <style>{`
+              @keyframes warning-pulse {
+                0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+                70% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+                100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+              }
+            `}</style>
+            <div style={{
+              margin: '0 0.5rem 0.6rem 0.5rem',
+              padding: '0.65rem 0.8rem',
+              background: !todayLog ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+              border: !todayLog ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: '8px',
+              color: !todayLog ? '#f59e0b' : '#ef4444',
+              fontSize: '0.72rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              boxShadow: !todayLog ? '0 0 10px rgba(245, 158, 11, 0.08)' : '0 0 10px rgba(239, 68, 68, 0.08)',
+              animation: 'warning-pulse 2s infinite'
+            }}>
+              <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+              <div style={{ flex: 1, lineHeight: '1.3' }}>
+                <span style={{ fontWeight: 800, color: !todayLog ? '#fbbf24' : '#f87171', display: 'block', fontSize: '0.75rem', marginBottom: '0.1rem' }}>
+                  {!todayLog ? 'PERINGATAN PLOTTING KOSONG' : 'ANDA TIDAK TERDAFTAR'}
+                </span>
+                {!todayLog 
+                  ? 'Danru belum mengisi absensi & plotting hari ini! Harap hubungi Danru regu Anda untuk konfirmasi shift.' 
+                  : 'Nama Anda tidak terdaftar pada plotting hari ini! Silakan hubungi Danru untuk update jadwal.'}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Tab Navigation */}
         <div className="mobile-tab-bar" style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem', background: 'var(--bg-glass)', borderRadius: '10px', padding: '0.2rem' }}>
           <button onClick={() => { setTab('patroli'); resetLaporan(); }} className={`mobile-tab ${tab === 'patroli' ? 'active' : ''}`} style={{
@@ -487,6 +524,26 @@ export default function SecurityPatrolApp({
                   <h3>Mulai Patroli</h3>
                   <p>Scan barcode checkpoint untuk memulai patroli.</p>
                 </div>
+                {!todayLog && (
+                  <div className="glass-panel" style={{ padding: '0.75rem', borderLeft: '3px solid var(--color-warning)', background: 'rgba(245,158,11,0.08)', marginBottom: '0.75rem' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.25rem' }}>
+                      <AlertTriangle size={11} /> PLOTTING BELUM DIISI
+                    </div>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      Danru/Wadanru belum mengisi absensi & plotting untuk hari ini. Hubungi Danru regu Anda.
+                    </p>
+                  </div>
+                )}
+                {todayLog && !myPlotting && (
+                  <div className="glass-panel" style={{ padding: '0.75rem', borderLeft: '3px solid var(--color-danger)', background: 'rgba(239,68,68,0.08)', marginBottom: '0.75rem' }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.25rem' }}>
+                      <AlertTriangle size={11} /> ANDA TIDAK TERDAFTAR
+                    </div>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      Nama Anda tidak ditemukan di absensi & plotting hari ini. Hubungi Danru untuk konfirmasi.
+                    </p>
+                  </div>
+                )}
                 {myPlotting && (
                   <div className="glass-panel" style={{ padding: '0.75rem', borderLeft: '3px solid var(--color-success)', background: 'rgba(16,185,129,0.05)' }}>
                     <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.3rem' }}>
