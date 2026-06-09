@@ -3,18 +3,14 @@ import react from '@vitejs/plugin-react'
 import basicSsl from '@vitejs/plugin-basic-ssl'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command, mode }) => {
-  const isAndroid = mode === 'android';
-  const isVercel = process.env.VERCEL === '1';
-  
+export default defineConfig(({ command }) => {
   const plugins = [react()];
-  // basicSsl hanya digunakan saat development server (serve)
   if (command === 'serve') {
     plugins.push(basicSsl());
   }
 
   return {
-    base: (isAndroid || isVercel) ? './' : '/SMP-JDC/',
+    base: './',
     plugins,
     build: {
       outDir: 'docs',
