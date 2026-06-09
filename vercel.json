@@ -1,9 +1,9 @@
 {
+  "version": 2,
   "outputDirectory": "docs",
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "framework": "vite",
   "ignoreCommand": "test ! -f package.json",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
