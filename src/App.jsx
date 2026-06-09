@@ -615,6 +615,18 @@ export default function App() {
     try {
       localStorage.setItem('sapujagat_users', JSON.stringify(users));
       signUserData(users);
+      
+      // Auto-initialize PINs for all users synced from Firebase/local who don't have one in localStorage
+      if (Array.isArray(users)) {
+        users.forEach(u => {
+          const stored = localStorage.getItem(`smpjdc_pin_${u.id}`);
+          if (!stored) {
+            localStorage.setItem(`smpjdc_pin_${u.id}`, hashPin(u.nrp));
+          } else if (stored && !stored.startsWith('h')) {
+            localStorage.setItem(`smpjdc_pin_${u.id}`, hashPin(stored));
+          }
+        });
+      }
     } catch (e) {
       console.error('Failed to save users to localStorage', e);
     }
