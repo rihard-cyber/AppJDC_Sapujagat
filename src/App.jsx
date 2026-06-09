@@ -471,16 +471,18 @@ export default function App() {
     try {
       const saved = localStorage.getItem('sapujagat_areas');
       const parsed = saved ? JSON.parse(saved) : null;
-      const dbVersion = localStorage.getItem(DB_VERSION_KEY);
-
-      if (Array.isArray(parsed) && parsed.length > 0 && dbVersion === CURRENT_DB_VERSION) {
-        return parsed;
+      const initialIds = new Set(INITIAL_AREAS.map(a => a.id));
+      const merged = [...INITIAL_AREAS];
+      if (Array.isArray(parsed)) {
+        parsed.forEach(area => {
+          if (!initialIds.has(area.id)) {
+            merged.push(area);
+          }
+        });
       }
-
-      // Overwrite areas with INITIAL_AREAS (26 real JDC areas) on version mismatch / fresh install
-      localStorage.setItem('sapujagat_areas', JSON.stringify(INITIAL_AREAS));
+      localStorage.setItem('sapujagat_areas', JSON.stringify(merged));
       localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
-      return INITIAL_AREAS;
+      return merged;
     } catch (e) {
       return INITIAL_AREAS;
     }
