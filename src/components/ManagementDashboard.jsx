@@ -47,6 +47,14 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
   const [showWASent, setShowWASent] = useState({});
   const [selectedFindings, setSelectedFindings] = useState([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [complaintFilter, setComplaintFilter] = useState('all');
+  const [expandedComplaint, setExpandedComplaint] = useState(null);
+
+  const STATUS_OPTIONS = ['Baru', 'Diterima', 'Diproses', 'Selesai'];
+
+  const filteredComplaints = [...complaints]
+    .filter(c => complaintFilter === 'all' || c.status === complaintFilter)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   // Load WA contacts dynamically from localStorage (updated via Settings)
   const WA_CONTACTS = getWAContacts();
@@ -969,99 +977,178 @@ export default function ManagementDashboard({ reports, findings, areas, users, a
         </p>
       </div>
 
-      {/* ── 10. RINGKASAN KOMPLAIN MASUK ───────────────────────────────────── */}
+      {/* ── 10. KOMPLAIN MASUK — FULL MANAGEMENT ──────────────────────────── */}
       <div className="glass-panel" style={{ padding: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <MessageCircle size={18} className="text-primary"/>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Ringkasan Komplain Masuk</h3>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Komplain Masuk & Management Tiket</h3>
+            <span className="badge badge-info pulse-primary" style={{ fontSize: '0.55rem' }}>Live</span>
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem' }}>
-            <span style={{ color: '#3b82f6', fontWeight: 700 }}>Baru: {complaintsNew}</span>
-            <span style={{ color: '#8b5cf6', fontWeight: 700 }}>Aktif: {complaintsActive}</span>
-            <span style={{ color: 'var(--text-muted)' }}>Total: {complaints.length}</span>
+          <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.7rem' }}>
+            {['all', 'Baru', 'Diproses', 'Selesai'].map(s => (
+              <button key={s} onClick={() => setComplaintFilter(s)} style={{
+                border: 'none', background: complaintFilter === s ? 'rgba(99,102,241,0.2)' : 'transparent',
+                color: complaintFilter === s ? '#818cf8' : 'var(--text-secondary)',
+                padding: '0.3rem 0.7rem', borderRadius: '6px', cursor: 'pointer', fontWeight: complaintFilter === s ? 700 : 500,
+                fontSize: '0.7rem', transition: 'all 0.15s'
+              }}>
+                {s === 'all' ? `Semua (${complaints.length})` : `${s} (${s === 'Diproses' ? complaints.filter(c => c.status === 'Diproses' || c.status === 'Diterima').length : complaints.filter(c => c.status === s).length})`}
+              </button>
+            ))}
           </div>
         </div>
 
-        {recentComplaints.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            <CheckCircle2 size={32} style={{ opacity: 0.3, marginBottom: '0.5rem' }}/>
-            <p>Belum ada komplain masuk.</p>
+        {filteredComplaints.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
+            <CheckCircle2 size={36} style={{ opacity: 0.25, marginBottom: '0.5rem' }}/>
+            <p style={{ fontSize: '0.85rem' }}>Tidak ada komplain dengan status ini.</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {recentComplaints.map(c => {
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            {filteredComplaints.map(c => {
               const sc = COMPLAINT_STATUS_COLOR[c.status] || '#6b7280';
+              const isExpanded = expandedComplaint === c.id;
               return (
                 <div key={c.id} style={{
-                  padding: '0.65rem 0.85rem', borderRadius: '8px',
-                  borderLeft: `3px solid ${sc}`,
-                  background: c.status === 'Baru' ? 'rgba(59,130,246,0.04)' : 'rgba(0,0,0,0.02)',
-                  border: '1px solid var(--border-glass)',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem'
+                  borderRadius: '10px', border: `1px solid ${c.status === 'Baru' ? 'rgba(59,130,246,0.3)' : 'var(--border-glass)'}`,
+                  background: c.status === 'Baru' ? 'rgba(59,130,246,0.04)' : 'var(--bg-secondary)',
+                  overflow: 'hidden', transition: 'all 0.2s'
                 }}>
-                  <div style={{ flex: 1, minWidth: 140 }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--color-primary)' }}>{c.ticketId}</span>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</span>
-                      <span style={{
-                        fontSize: '0.55rem', padding: '0.1rem 0.4rem', borderRadius: '99px', fontWeight: 700,
-                        background: `${sc}20`, color: sc
-                      }}>{c.status}</span>
-                      <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{c.tenant} • {c.floor}</span>
-                    </div>
-                    <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.15rem', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {c.description}
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
-                    {c.status !== 'Selesai' && DEPARTMENTS.map(d => {
-                      const contact = WA_CONTACTS[d] || WA_CONTACTS.Keamanan;
-                      const waMsg = encodeURIComponent(
-                        `*📋 KOMPLAIN MASUK - SMPJDC*\n` +
-                        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-                        `${contact.emoji} *Disposisi ke: ${contact.nama}*\n\n` +
-                        `🆔 *Tiket:* ${c.ticketId}\n` +
-                        `📌 *Kategori:* ${c.category}\n` +
-                        `👤 *Pelapor:* ${c.name}\n` +
-                        `🏢 *Tenant:* ${c.tenant} • Lt.${c.floor}\n` +
-                        `📝 *Deskripsi:* ${c.description}\n\n` +
-                        `⚡ *Mohon segera ditindaklanjuti!*\n` +
-                        `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-                        `_Sistem Manajemen Keamanan JDC_`
-                      );
-                      return (
-                      <button key={d} onClick={() => {
-                        onUpdateComplaint && onUpdateComplaint(c.id, {
-                          department: d, status: 'Diproses',
-                          history: [...(c.history || []), { status: 'Diproses', timestamp: new Date().toISOString(), note: `Didisposisikan ke ${d} dari Dashboard` }],
-                          waStatus: `Terkirim (${d})`,
-                          waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
-                          updatedAt: new Date().toISOString()
-                        });
-                        window.open(`https://api.whatsapp.com/send?phone=${contact.nomor}&text=${waMsg}`, '_blank', 'noopener');
-                      }} style={{
-                        padding: '0.25rem 0.5rem', fontSize: '0.6rem', borderRadius: '6px', fontWeight: 700,
-                        border: '1px solid var(--border-glass)', cursor: 'pointer',
-                        background: 'transparent', color: 'var(--text-secondary)',
-                        display: 'flex', alignItems: 'center', gap: '0.2rem', fontFamily: 'var(--font-sans)'
+                  {/* Compact Header */}
+                  <div onClick={() => setExpandedComplaint(isExpanded ? null : c.id)} style={{
+                    padding: '0.7rem 0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap',
+                    borderBottom: isExpanded ? '1px solid var(--border-glass)' : 'none'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
+                        background: `${sc}18`, display: 'flex', alignItems: 'center', justifyContent: 'center'
                       }}>
-                        <Send size={9}/> {d}
-                      </button>
-                      );
-                    })}
-                    <button onClick={() => onUpdateComplaint && onUpdateComplaint(c.id, {
-                      status: 'Selesai',
-                      history: [...(c.history || []), { status: 'Selesai', timestamp: new Date().toISOString(), note: 'Ditandai selesai dari Dashboard' }],
-                      updatedAt: new Date().toISOString()
-                    })} style={{
-                      padding: '0.25rem 0.45rem', fontSize: '0.6rem', borderRadius: '6px', fontWeight: 700,
-                      border: '1px solid rgba(16,185,129,0.3)', cursor: 'pointer',
-                      background: 'rgba(16,185,129,0.08)', color: '#10b981'
-                    }}>
-                      <CheckCircle2 size={9}/> Selesai
-                    </button>
+                        <MessageSquare size={14} color={sc}/>
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--color-primary)' }}>{c.ticketId}</span>
+                          <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</span>
+                          <span style={{
+                            fontSize: '0.55rem', padding: '0.08rem 0.45rem', borderRadius: '99px', fontWeight: 700,
+                            background: `${sc}20`, color: sc
+                          }}>{c.status}</span>
+                        </div>
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {c.tenant} • {c.floor} • {c.category || 'Lainnya'}{c.department ? ` → ${c.department}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+                      <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>
+                        {new Date(c.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                      </span>
+                      {isExpanded ? <ChevronUp size={14} color="var(--text-muted)"/> : <ChevronDown size={14} color="var(--text-muted)"/>}
+                    </div>
                   </div>
+
+                  {/* Expanded Detail */}
+                  {isExpanded && (
+                    <div style={{ padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {/* Description */}
+                      <div>
+                        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600 }}>DESKRIPSI KOMPLAIN</p>
+                        <p style={{ fontSize: '0.85rem', lineHeight: 1.6, color: 'var(--text-primary)' }}>"{c.description}"</p>
+                      </div>
+
+                      {/* Photo */}
+                      {c.foto && (
+                        <div>
+                          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600 }}>FOTO BUKTI</p>
+                          <img src={c.foto} alt="Foto Komplain" style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '8px', border: '1px solid var(--border-glass)' }}/>
+                        </div>
+                      )}
+
+                      {/* Status History Timeline */}
+                      {c.history && c.history.length > 0 && (
+                        <div>
+                          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.4rem', fontWeight: 600 }}>RIWAYAT STATUS</p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                            {c.history.map((h, i) => (
+                              <div key={i} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', fontSize: '0.7rem' }}>
+                                <div style={{
+                                  width: '8px', height: '8px', borderRadius: '50%', marginTop: '0.3rem', flexShrink: 0,
+                                  background: COMPLAINT_STATUS_COLOR[h.status] || '#6b7280'
+                                }}/>
+                                <div>
+                                  <span style={{ fontWeight: 600, color: COMPLAINT_STATUS_COLOR[h.status] || 'var(--text-primary)' }}>{h.status}</span>
+                                  <span style={{ color: 'var(--text-muted)', marginLeft: '0.3rem' }}>
+                                    {new Date(h.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  {h.note && <p style={{ color: 'var(--text-secondary)', marginTop: '0.05rem' }}>{h.note}</p>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action Buttons Row */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', borderTop: '1px solid var(--border-glass)', paddingTop: '0.75rem' }}>
+                        {/* Status Change */}
+                        <div style={{ display: 'flex', gap: '0.3rem' }}>
+                          {STATUS_OPTIONS.filter(s => s !== c.status).map(s => (
+                            <button key={s} onClick={() => {
+                              const history = [...(c.history || []), { status: s, timestamp: new Date().toISOString(), note: `Status diubah ke ${s} dari Dashboard` }];
+                              onUpdateComplaint && onUpdateComplaint(c.id, { status: s, history, updatedAt: new Date().toISOString() });
+                            }} style={{
+                              padding: '0.3rem 0.6rem', fontSize: '0.65rem', borderRadius: '6px', fontWeight: 600,
+                              border: `1px solid ${COMPLAINT_STATUS_COLOR[s]}44`,
+                              background: `${COMPLAINT_STATUS_COLOR[s]}12`,
+                              color: COMPLAINT_STATUS_COLOR[s],
+                              cursor: 'pointer', transition: 'all 0.15s'
+                            }}>
+                              {s === 'Selesai' ? <>✓ Selesai</> : s === 'Diproses' ? <>⚙ Diproses</> : s === 'Diterima' ? <>📩 Diterima</> : <>🆕 Baru</>}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div style={{ flex: 1 }}/>
+
+                        {/* Disposisi */}
+                        {c.status !== 'Selesai' && (
+                          <div style={{ display: 'flex', gap: '0.3rem' }}>
+                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', marginRight: '0.1rem' }}>
+                              Disposisi:
+                            </span>
+                            {DEPARTMENTS.map(d => {
+                              const contact = WA_CONTACTS[d] || WA_CONTACTS.Keamanan;
+                              return (
+                                <button key={d} onClick={() => {
+                                  const history = [...(c.history || []), { status: 'Diproses', timestamp: new Date().toISOString(), note: `Didisposisikan ke ${d} dari Dashboard` }];
+                                  onUpdateComplaint && onUpdateComplaint(c.id, {
+                                    department: d, status: 'Diproses', history,
+                                    waStatus: `Terkirim (${d})`,
+                                    waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+                                    updatedAt: new Date().toISOString()
+                                  });
+                                  const waMsg = encodeURIComponent(
+                                    `*📋 KOMPLAIN MASUK - SMPJDC*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n${contact.emoji} *Disposisi ke: ${contact.nama}*\n\n🆔 *Tiket:* ${c.ticketId}\n📌 *Kategori:* ${c.category}\n👤 *Pelapor:* ${c.name}\n🏢 *Tenant:* ${c.tenant} • Lt.${c.floor}\n📝 *Deskripsi:* ${c.description}\n\n⚡ *Mohon segera ditindaklanjuti!*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n_Sistem Manajemen Keamanan JDC_`
+                                  );
+                                  window.open(`https://api.whatsapp.com/send?phone=${contact.nomor}&text=${waMsg}`, '_blank', 'noopener');
+                                }} style={{
+                                  padding: '0.25rem 0.5rem', fontSize: '0.6rem', borderRadius: '6px', fontWeight: 700,
+                                  border: '1px solid var(--border-glass)', cursor: 'pointer',
+                                  background: 'transparent', color: 'var(--text-secondary)',
+                                  transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '0.2rem'
+                                }}>
+                                  <Send size={9}/> {d}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
