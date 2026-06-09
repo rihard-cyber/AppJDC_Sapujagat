@@ -867,6 +867,10 @@ export default function App() {
           clearInterval(sirenInterval);
           if (osc) { try { osc.stop(); } catch(e) {} }
           try { audioCtx.close(); } catch(e) {}
+        }
+      };
+    } catch (e) {
+      return null;
     }
   };
 
@@ -879,10 +883,6 @@ export default function App() {
       // Re-fetch akan terjadi otomatis via onSnapshot
     } else {
       addToast('Gagal mengarsipkan data. Periksa koneksi internet.', 'danger');
-    }
-  };
-    } catch (e) {
-      return null;
     }
   };
 
