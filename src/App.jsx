@@ -412,52 +412,33 @@ export default function App() {
     try {
       const saved = localStorage.getItem('sapujagat_users');
       const parsed = saved ? JSON.parse(saved) : null;
-      const dbVersion = localStorage.getItem(DB_VERSION_KEY);
-
-      if (Array.isArray(parsed) && parsed.length > 0 && dbVersion === CURRENT_DB_VERSION) {
-        // Ensure all PINs are hashed (migrate from plaintext if needed)
+      const baseNrpSet = new Set(BASE_USERS.map(u => u.nrp));
+      const merged = BASE_USERS.map(bu => ({ ...bu }));
+      if (Array.isArray(parsed)) {
         parsed.forEach(u => {
+          if (!baseNrpSet.has(u.nrp)) {
+            merged.push(u);
+          }
           const stored = localStorage.getItem(`smpjdc_pin_${u.id}`);
           if (stored && !stored.startsWith('h')) {
             localStorage.setItem(`smpjdc_pin_${u.id}`, hashPin(stored));
           }
           delete u.pin;
         });
-        localStorage.setItem('sapujagat_users', JSON.stringify(parsed));
-        signUserData(parsed);
-        return parsed;
-      }
-
-      // Version mismatch — merge semua user default, jangan hapus data existing
-      const existingMap = {};
-      if (Array.isArray(parsed)) {
-        parsed.forEach(u => {
-          // Migrasi: ubah 'role' ke 'jabatan' jika masih pakai field lama
-          if (u.role && !u.jabatan) {
-            u.jabatan = u.role;
-            delete u.role;
+        BASE_USERS.forEach(bu => {
+          const stored = localStorage.getItem(`smpjdc_pin_${bu.id}`);
+          if (!stored) {
+            localStorage.setItem(`smpjdc_pin_${bu.id}`, hashPin(bu.nrp));
           }
-          existingMap[u.nrp] = u;
+        });
+      } else {
+        BASE_USERS.forEach(bu => {
+          const stored = localStorage.getItem(`smpjdc_pin_${bu.id}`);
+          if (!stored) {
+            localStorage.setItem(`smpjdc_pin_${bu.id}`, hashPin(bu.nrp));
+          }
         });
       }
-      BASE_USERS.forEach(bu => {
-        if (!existingMap[bu.nrp]) {
-          existingMap[bu.nrp] = { ...bu };
-        } else {
-          // Update Agus Siraitin to oversee all regus
-          if (bu.nrp === '10003') existingMap[bu.nrp].regu = '';
-        }
-      });
-      const merged = Object.values(existingMap);
-      merged.forEach(u => {
-        const stored = localStorage.getItem(`smpjdc_pin_${u.id}`);
-        if (!stored) {
-          localStorage.setItem(`smpjdc_pin_${u.id}`, hashPin(u.nrp));
-        } else if (stored && !stored.startsWith('h')) {
-          localStorage.setItem(`smpjdc_pin_${u.id}`, hashPin(stored));
-        }
-        delete u.pin;
-      });
       localStorage.setItem('sapujagat_users', JSON.stringify(merged));
       signUserData(merged);
       localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
