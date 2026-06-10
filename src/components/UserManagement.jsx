@@ -95,16 +95,16 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
     setAnggotaInput('');
   };
 
-  // Force sync semua user ke Firebase
+  // Force sync semua user ke Supabase
   const handleForceSyncFirebase = async () => {
     setIsSyncing(true);
     setSyncResult(null);
     let synced = 0, failed = 0;
     for (const u of users) {
-      if (u.firebaseId) { synced++; continue; }
+      if (u.supabaseId) { synced++; continue; }
       try {
-        const fid = await addUserToFirestore({ ...u, pin: undefined });
-        if (fid) synced++; else failed++;
+        const sid = await addUserToFirestore({ ...u, pin: undefined });
+        if (sid) synced++; else failed++;
       } catch(e) { failed++; }
       await new Promise(r => setTimeout(r, 200));
     }
@@ -198,7 +198,7 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
 
       {/* ── Panel Status Sinkronisasi Firebase ─────────────────────────── */}
       {currentUser?.jabatan === 'Admin Super' && (() => {
-        const unsyncedCount = users.filter(u => !u.firebaseId).length;
+        const unsyncedCount = users.filter(u => !u.supabaseId).length;
         const syncedCount = users.length - unsyncedCount;
         return (
           <div className="glass-panel" style={{
@@ -214,7 +214,7 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
                   : <Cloud size={16} style={{ color: '#10b981' }} />}
                 <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>
                   {unsyncedCount > 0
-                    ? `⚠️ ${unsyncedCount} user BELUM tersync ke Firebase`
+                    ? `⚠️ ${unsyncedCount} user BELUM tersync ke Cloud`
                     : `✅ Semua ${users.length} user sudah tersync ke Firebase`}
                 </span>
               </div>
@@ -247,7 +247,7 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
               }}
             >
               <RefreshCw size={15} style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }} />
-              {isSyncing ? 'Mengupload...' : 'Force Sync ke Firebase'}
+              {isSyncing ? 'Mengupload...' : 'Force Sync ke Cloud'}
             </button>
           </div>
         );
