@@ -828,7 +828,7 @@ export default function App() {
   // Firebase real-time subscription untuk users
   useEffect(() => {
     const db = initFirebase();
-    if (!db) return;
+    if (!db) { setFirebaseUsersLoaded(true); return; }
     let firstSync = true;
     const unsub = subscribeUsers((firebaseData) => {
       if (!firebaseData) return;

@@ -114,7 +114,7 @@ export default function LoginPage({ users: usersProp = [], onLogin, onSetup, has
   };
 
   // Show loading while Firebase syncs user data
-  if (!firebaseUsersLoaded && !localStorage.getItem('sapujagat_users')) {
+  if (!firebaseUsersLoaded) {
     return (
       <div className="login-page">
         <div className="login-bg-animation">
