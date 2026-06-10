@@ -22,6 +22,7 @@ import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateCompl
   subscribeAttendanceLogs, addAttendanceLogToFirestore, updateAttendanceLogInFirestore,
   subscribeMutasiLogs, addMutasiLogToFirestore, updateMutasiLogInFirestore, deleteMutasiLogFromFirestore,
   subscribeUsers, addUserToFirestore, updateUserInFirestore, deleteUserFromFirestore, resetUsersInFirestore,
+  subscribeAreas, addAreaToFirestore, updateAreaInFirestore, deleteAreaFromFirestore,
   clearAllPatrolDataInFirestore, deleteOldDataInFirestore } from './utils/firebase';
 import { 
   LayoutDashboard, 
@@ -856,6 +857,36 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // Firebase real-time subscription untuk areas/checkpoints
+  useEffect(() => {
+    const db = initFirebase();
+    if (!db) return;
+    const unsub = subscribeAreas((firebaseData) => {
+      if (!firebaseData) return;
+      setAreas(prev => {
+        const initialIds = new Set(INITIAL_AREAS.map(a => a.id));
+        const merged = [...INITIAL_AREAS];
+        const fbIds = new Set();
+        firebaseData.forEach(fb => {
+          if (!initialIds.has(fb.id)) {
+            merged.push(fb);
+          }
+          fbIds.add(fb.id);
+        });
+        prev.forEach(local => {
+          if (!initialIds.has(local.id) && !fbIds.has(local.id)) {
+            if (merged.length < 500) merged.push(local);
+          }
+        });
+        try {
+          localStorage.setItem('sapujagat_areas', JSON.stringify(merged));
+        } catch (e) {}
+        return merged;
+      });
+    }, { limit: 500 });
+    return () => unsub();
+  }, []);
+
   // Auto-sync currentUser ketika data dari FireStore berubah
   useEffect(() => {
     if (!currentUser) return;
@@ -1129,18 +1160,27 @@ export default function App() {
   
   const handleAddArea = (newArea) => {
     const areaId = newArea.qrCode.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    setAreas(prev => [...prev, { id: areaId, ...newArea }]);
+    const area = { id: areaId, ...newArea };
+    setAreas(prev => [...prev, area]);
+    addAreaToFirestore(area);
     addToast(`Area ${newArea.titik} (Lt.${newArea.lantai} - ${newArea.zona}) berhasil didaftarkan!`, 'success');
   };
 
   const handleUpdateArea = (areaId, updates) => {
-    setAreas(prev => prev.map(a => a.id === areaId ? { ...a, ...updates } : a));
+    setAreas(prev => prev.map(a => {
+      if (a.id !== areaId) return a;
+      if (a.firebaseId) updateAreaInFirestore(a.firebaseId, updates);
+      return { ...a, ...updates };
+    }));
     addToast(`Area berhasil diperbarui!`, 'success');
   };
 
   const handleDeleteArea = (areaId) => {
     if (!window.confirm('Yakin ingin menghapus area/checkpoint ini? Tindakan ini tidak bisa dibatalkan.')) return;
-    setAreas(prev => prev.filter(a => a.id !== areaId));
+    setAreas(prev => prev.filter(a => {
+      if (a.id === areaId && a.firebaseId) deleteAreaFromFirestore(a.firebaseId);
+      return a.id !== areaId;
+    }));
     addToast('Area/checkpoint berhasil dihapus!', 'info');
   };
 

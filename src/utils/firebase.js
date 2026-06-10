@@ -220,6 +220,16 @@ export const resetUsersInFirestore = async (defaultUsers) => {
   }
 };
 
+// ─── Areas / Checkpoints ───
+export const subscribeAreas = (callback, opts = {}) =>
+  createSubscriber('areas', callback, 'createdAt', opts);
+
+export const addAreaToFirestore = createAdder('areas');
+
+export const updateAreaInFirestore = createUpdater('areas');
+
+export const deleteAreaFromFirestore = createDeleter('areas');
+
 export const clearAllPatrolDataInFirestore = async () => {
   const database = initFirebase();
   if (!database) return false;
