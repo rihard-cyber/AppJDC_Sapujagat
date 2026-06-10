@@ -42,11 +42,19 @@ function normalizeDoc(doc) {
   return result;
 }
 
-function prepareData(data) {
+const KNOWN_TABLE_COLUMNS = {
+  users: new Set(['id', 'nrp', 'nama', 'jabatan', 'regu', 'avatar', 'status', 'email', 'nomor_hp', 'last_active', 'firebase_id', 'firebase_saved_at', 'created_at', 'updated_at']),
+};
+
+function prepareData(data, tableName) {
   const { supabaseId, ...rest } = data || {};
   const result = {};
+  const allowed = KNOWN_TABLE_COLUMNS[tableName];
   for (const [key, value] of Object.entries(rest)) {
-    if (value !== undefined) result[toSnake(key)] = value;
+    if (value === undefined) continue;
+    const snakeKey = toSnake(key);
+    if (allowed && !allowed.has(snakeKey)) continue;
+    result[snakeKey] = value;
   }
   return result;
 }
@@ -94,29 +102,19 @@ const createSubscriber = (tableName, callback, orderField = 'created_at', opts =
 const createAdder = (tableName) => async (data) => {
   const client = initSupabase();
   if (!client) return null;
-  let dbData = prepareData(data);
+  const dbData = prepareData(data, tableName);
   if (!dbData.created_at) dbData.created_at = new Date().toISOString();
   dbData.firebase_saved_at = new Date().toISOString();
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const { data: result, error } = await client.from(tableName).insert(dbData).select().single();
-    if (error) {
-      const match = error.message?.match(/Could not find the '(\w+)' column/);
-      if (match && match[1] && dbData[match[1]] !== undefined) {
-        delete dbData[match[1]];
-        continue;
-      }
-      throw error;
-    }
-    return result.supabase_id;
-  }
-  return null;
+  const { data: result, error } = await client.from(tableName).insert(dbData).select().single();
+  if (error) throw error;
+  return result.supabase_id;
 };
 
 const createUpdater = (tableName) => async (supabaseId, updates) => {
   const client = initSupabase();
   if (!client) return;
   try {
-    const dbData = prepareData(updates);
+    const dbData = prepareData(updates, tableName);
     dbData.updated_at = new Date().toISOString();
     await client.from(tableName).update(dbData).eq('supabase_id', supabaseId);
   } catch (e) {
@@ -209,7 +207,7 @@ export const resetUsersInFirestore = async (defaultUsers) => {
     await client.from('users').delete().neq('supabase_id', '00000000-0000-0000-0000-000000000000');
     for (const u of defaultUsers) {
       const { firebaseId, ...userData } = u;
-      const dbData = prepareData(userData);
+      const dbData = prepareData(userData, 'users');
       dbData.created_at = new Date().toISOString();
       dbData.firebase_saved_at = new Date().toISOString();
       const { error } = await client.from('users').insert(dbData);
