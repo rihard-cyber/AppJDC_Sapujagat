@@ -209,7 +209,7 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
 
               {/* Detail panel */}
               {detail?.id === c.id && (
-                <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-glass)' }}>
+                <div onClick={e => e.stopPropagation()} style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-glass)' }}>
                   {c.photos?.length > 0 && (
                     <div style={{ marginBottom: '0.75rem' }}>
                       <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.3rem' }}>FOTO BUKTI</p>
@@ -257,10 +257,10 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
                       <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.3rem' }}>UBAH STATUS</p>
                       <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                         {STATUS_OPTIONS.filter(s => s !== c.status).map(s => (
-                          <button key={s} onClick={() => handleUpdateStatus(c.id, s)} style={{
-                            padding: '0.35rem 0.6rem', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 700,
+                          <button key={s} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(c.id, s); }} style={{
+                            padding: '0.35rem 0.6rem', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 700, minHeight: '40px',
                             border: `1.5px solid ${statusColor(s)}`, background: `${statusColor(s)}15`,
-                            color: statusColor(s), cursor: 'pointer', fontFamily: 'var(--font-sans)'
+                            color: statusColor(s), cursor: 'pointer', fontFamily: 'var(--font-sans)', touchAction: 'manipulation'
                           }}>{s}</button>
                         ))}
                       </div>
@@ -272,13 +272,14 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
                         <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.3rem' }}>DISPOSISI KE</p>
                         <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                           {DEPARTMENTS.map(d => (
-                            <button key={d} onClick={() => handleDispatch(c.id, d)} style={{
-                              padding: '0.35rem 0.6rem', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 700,
+                            <button key={d} onClick={(e) => { e.stopPropagation(); handleDispatch(c.id, d); }} style={{
+                              padding: '0.4rem 0.7rem', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 700, minHeight: '44px',
                               border: `1.5px solid ${c.department === d ? 'var(--color-success)' : 'var(--border-glass)'}`,
                               background: c.department === d ? 'rgba(16,185,129,0.1)' : 'transparent',
                               color: c.department === d ? 'var(--color-success)' : 'var(--text-secondary)',
-                              cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '0.2rem'
-                            }}><Send size={11} /> {d}</button>
+                              cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '0.2rem',
+                              touchAction: 'manipulation'
+                            }}><Send size={12} /> {d}</button>
                           ))}
                         </div>
                       </div>

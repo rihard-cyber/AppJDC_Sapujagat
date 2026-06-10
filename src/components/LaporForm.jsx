@@ -14,15 +14,18 @@ import { Send, Camera, MapPin, FileText, AlertTriangle, CheckCircle, X } from 'l
 import { generateAntiFraudData } from '../utils/security';
 import { compressImage } from '../utils/image';
 
-export default function LaporForm({ currentUser, areas, onAddReport, onAddLog }) {
+export default function LaporForm({ currentUser, areas, posList = [], onAddReport, onAddLog }) {
   const [jenis, setJenis] = useState('patroli');
   const [areaId, setAreaId] = useState('');
   const [kondisi, setKondisi] = useState('Aman dan Kondusif');
+  const [kondisiCustom, setKondisiCustom] = useState('');
   const [keterangan, setKeterangan] = useState('');
   const [foto, setFoto] = useState(null);
   const [katMutasi, setKatMutasi] = useState('informasi');
   const [katMutasiLainnya, setKatMutasiLainnya] = useState('');
   const [lokasiMutasi, setLokasiMutasi] = useState('');
+  const [lokasiCustom, setLokasiCustom] = useState('');
+  const [isCustomLokasi, setIsCustomLokasi] = useState(false);
   const [uraianMutasi, setUraianMutasi] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -65,7 +68,8 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
 
     if (jenis === 'patroli') {
       const area = areas.find(a => a.id === areaId);
-      const isAman = kondisi === 'Aman dan Kondusif' || kondisi === 'Ada Aktivitas' || kondisi === 'Renovasi';
+      const finalKondisi = kondisi === 'Lainnya' && kondisiCustom.trim() ? kondisiCustom.trim() : kondisi;
+      const isAman = finalKondisi === 'Aman dan Kondusif' || finalKondisi === 'Ada Aktivitas' || finalKondisi === 'Renovasi';
       onAddReport({
         timestamp: new Date().toISOString(),
         timestampEnd: new Date().toISOString(),
@@ -77,11 +81,11 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
         zona: area.zona,
         titik: area.titik,
         shift: '-',
-        kategori: isAman ? '-' : kondisi,
+        kategori: isAman ? '-' : finalKondisi,
         kodeTemuan: '-',
-        temuan: isAman ? 'Normal' : kondisi,
+        temuan: isAman ? 'Normal' : finalKondisi,
         status: isAman ? 'normal' : 'temuan',
-        kondisi: kondisi,
+        kondisi: finalKondisi,
         severity: isAman ? 'Rendah' : 'Sedang',
         keterangan: keterangan,
         foto: foto,
@@ -107,8 +111,12 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
     setLoading(false);
     setDone(true);
     setKeterangan('');
+    setKondisi('Aman dan Kondusif');
+    setKondisiCustom('');
     setUraianMutasi('');
     setLokasiMutasi('');
+    setLokasiCustom('');
+    setIsCustomLokasi(false);
     setFoto(null);
     setAreaId('');
     setKatMutasi('informasi'); setKatMutasiLainnya('');
@@ -172,9 +180,13 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                   <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>KONDISI</label>
-                  <select value={kondisi} onChange={e => setKondisi(e.target.value)} className="modern-select">
+                  <select value={kondisi} onChange={e => { setKondisi(e.target.value); if (e.target.value !== 'Lainnya') setKondisiCustom(''); }} className="modern-select">
                     {KONDISI_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}
                   </select>
+                  {kondisi === 'Lainnya' && (
+                    <input type="text" value={kondisiCustom} onChange={e => setKondisiCustom(e.target.value)}
+                      placeholder="Ketik kondisi..." className="modern-input" style={{ marginTop: '0.3rem', fontSize: '0.8rem' }} />
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
@@ -208,8 +220,35 @@ export default function LaporForm({ currentUser, areas, onAddReport, onAddLog })
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>LOKASI / POS</label>
-                  <input type="text" value={lokasiMutasi} onChange={e => setLokasiMutasi(e.target.value)} placeholder="Contoh: Lobby Utama / Lt.3 / Pos 00" className="modern-input" style={{ fontSize: '0.82rem' }} required />
+                  <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>PLOTTING POS / LOKASI</label>
+                  {!isCustomLokasi ? (
+                    <select value={lokasiMutasi} onChange={e => {
+                      const val = e.target.value;
+                      if (val === '__custom__') {
+                        setIsCustomLokasi(true);
+                        setLokasiMutasi('');
+                      } else {
+                        setLokasiMutasi(val);
+                      }
+                    }} className="modern-select" style={{ fontSize: '0.82rem', padding: '0.5rem' }} required>
+                      <option value="">-- Pilih Pos Jaga --</option>
+                      {posList.map(p => (
+                        <option key={p.id} value={p.titik}>{p.titik}</option>
+                      ))}
+                      <option value="__custom__">-- Lainnya (Ketik Manual) --</option>
+                    </select>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                      <input type="text" value={lokasiCustom} onChange={e => {
+                        setLokasiCustom(e.target.value);
+                        setLokasiMutasi(e.target.value);
+                      }} placeholder="Ketik lokasi manual..." className="modern-input" style={{ fontSize: '0.82rem' }} required />
+                      <button type="button" onClick={() => { setIsCustomLokasi(false); setLokasiCustom(''); setLokasiMutasi(''); }}
+                        style={{ alignSelf: 'flex-start', fontSize: '0.72rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                        ← Kembali ke daftar Pos
+                      </button>
+                    </div>
+                  )}
                   {errors.lokasi && <span style={{ fontSize: '0.72rem', color: 'var(--color-danger)' }}>{errors.lokasi}</span>}
                 </div>
 

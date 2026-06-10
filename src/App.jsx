@@ -53,10 +53,12 @@ import LoginPage from './components/LoginPage';
 import MutasiPenjagaan from './components/MutasiPenjagaan';
 import UserManagement from './components/UserManagement';
 import AbsensiRegu from './components/AbsensiRegu';
+import RosterManagement from './components/RosterManagement';
 import LaporForm from './components/LaporForm';
 import BackupRestore from './components/BackupRestore';
 import ComplaintForm from './components/ComplaintForm';
 import BottomNav from './components/BottomNav';
+import INITIAL_POS_LIST from './data/posList';
 
 const ManagementDashboard = lazy(() => import('./components/ManagementDashboard'));
 const SecurityPatrolApp = lazy(() => import('./components/SecurityPatrolApp'));
@@ -110,6 +112,10 @@ const BASE_USERS = [
   { id: 9, nrp: '20006', nama: 'Dedy K', jabatan: 'Wadanru', regu: 'Regu C' },
   { id: 10, nrp: '20007', nama: 'M. Iqbal', jabatan: 'Danru', regu: 'Regu D' },
   { id: 11, nrp: '20008', nama: 'Dimas Pratama Putra', jabatan: 'Wadanru', regu: 'Regu D' },
+  { id: 12, nrp: '30001', nama: 'Hendra BKO', jabatan: 'BKO', regu: 'Regu A' },
+  { id: 13, nrp: '30002', nama: 'Slamet BKO', jabatan: 'BKO', regu: 'Regu B' },
+  { id: 14, nrp: '30003', nama: 'Rudi KH', jabatan: 'KH (Khusus)', regu: 'Regu A' },
+  { id: 15, nrp: '30004', nama: 'Bambang KH', jabatan: 'KH (Khusus)', regu: 'Regu C' },
 ];
 
 const mapDepartment = (kategori, temuanText = '') => {
@@ -292,7 +298,7 @@ export default function App() {
         const validTabs = [
           'dashboard', 'absensi', 'target-compliance', 'barcodes', 
           'mutasi', 'reports', 'guard-simulator', 'user-management', 
-          'backup', 'lapor', 'complaint'
+          'backup', 'lapor', 'complaint', 'roster'
         ];
         if (validTabs.includes(hash)) {
           setCurrentTab(hash);
@@ -436,14 +442,18 @@ export default function App() {
       const merged = BASE_USERS.map(bu => ({ ...bu }));
       if (Array.isArray(parsed)) {
         parsed.forEach(u => {
-          if (!baseNrpSet.has(u.nrp)) {
-            merged.push(u);
-          }
           const stored = localStorage.getItem(`smpjdc_pin_${u.id}`);
           if (stored && !stored.startsWith('h')) {
             localStorage.setItem(`smpjdc_pin_${u.id}`, hashPin(stored));
           }
           delete u.pin;
+
+          const idx = merged.findIndex(m => m.nrp === u.nrp);
+          if (idx === -1) {
+            merged.push(u);
+          } else {
+            merged[idx] = { ...merged[idx], ...u };
+          }
         });
         BASE_USERS.forEach(bu => {
           const stored = localStorage.getItem(`smpjdc_pin_${bu.id}`);
@@ -486,6 +496,20 @@ export default function App() {
       return merged;
     } catch (e) {
       return INITIAL_AREAS;
+    }
+  });
+
+  const [posList, setPosList] = useState(() => {
+    try {
+      const saved = localStorage.getItem('smpjdc_pos_list');
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      localStorage.setItem('smpjdc_pos_list', JSON.stringify(INITIAL_POS_LIST));
+      return INITIAL_POS_LIST;
+    } catch (e) {
+      return INITIAL_POS_LIST;
     }
   });
 
@@ -633,6 +657,14 @@ export default function App() {
       console.error('Failed to save areas to localStorage', e);
     }
   }, [areas]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('smpjdc_pos_list', JSON.stringify(posList));
+    } catch (e) {
+      console.error('Failed to save pos list to localStorage', e);
+    }
+  }, [posList]);
 
   useEffect(() => {
     try {
@@ -788,8 +820,19 @@ export default function App() {
       setUsers(prev => {
         const merged = [...firebaseData];
         prev.forEach(local => {
-          const exists = merged.find(u => u.id === local.id || (u.firebaseId && u.firebaseId === local.firebaseId));
-          if (!exists && merged.length < 200) merged.push(local);
+          const idx = merged.findIndex(u => u.id === local.id || (u.firebaseId && u.firebaseId === local.firebaseId));
+          if (idx === -1) {
+            if (merged.length < 200) merged.push(local);
+          } else {
+            merged[idx] = { ...merged[idx] };
+            if (local.avatar) merged[idx].avatar = local.avatar;
+            if (local.nama) merged[idx].nama = local.nama;
+            if (local.jabatan) merged[idx].jabatan = local.jabatan;
+            if (local.regu) merged[idx].regu = local.regu;
+            if (local.kontak) merged[idx].kontak = local.kontak;
+            if (local.email) merged[idx].email = local.email;
+            if (local.pos) merged[idx].pos = local.pos;
+          }
         });
         try {
           localStorage.setItem('sapujagat_users', JSON.stringify(merged));
@@ -1054,6 +1097,34 @@ export default function App() {
     addToast(`Area ${newArea.titik} (Lt.${newArea.lantai} - ${newArea.zona}) berhasil didaftarkan!`, 'success');
   };
 
+  const handleUpdateArea = (areaId, updates) => {
+    setAreas(prev => prev.map(a => a.id === areaId ? { ...a, ...updates } : a));
+    addToast(`Area berhasil diperbarui!`, 'success');
+  };
+
+  const handleDeleteArea = (areaId) => {
+    if (!window.confirm('Yakin ingin menghapus area/checkpoint ini? Tindakan ini tidak bisa dibatalkan.')) return;
+    setAreas(prev => prev.filter(a => a.id !== areaId));
+    addToast('Area/checkpoint berhasil dihapus!', 'info');
+  };
+
+  const handleAddPos = (newPos) => {
+    const posId = newPos.id || `pos-${Date.now()}`;
+    setPosList(prev => [...prev, { id: posId, ...newPos }]);
+    addToast(`Pos ${newPos.titik} berhasil ditambahkan!`, 'success');
+  };
+
+  const handleUpdatePos = (posId, updates) => {
+    setPosList(prev => prev.map(p => p.id === posId ? { ...p, ...updates } : p));
+    addToast(`Pos jaga berhasil diperbarui!`, 'success');
+  };
+
+  const handleDeletePos = (posId) => {
+    if (!window.confirm(`Yakin ingin menghapus pos jaga ini?`)) return;
+    setPosList(prev => prev.filter(p => p.id !== posId));
+    addToast('Pos jaga berhasil dihapus!', 'info');
+  };
+
   const handleAddUser = (newUser) => {
     const userId = Date.now() + Math.floor(Math.random() * 1000);
     const userData = {
@@ -1271,6 +1342,8 @@ export default function App() {
     'Danru': 'Danru',
     'Wadanru': 'Wadanru',
     'Anggota': 'Anggota',
+    'BKO': 'BKO',
+    'KH (Khusus)': 'KH',
     'Guest Viewer': 'Guest'
   };
 
@@ -1278,7 +1351,7 @@ export default function App() {
   const isAdmin = ['Manajemen', 'SPV'].includes(currentUser?.jabatan);
   const isClient = currentUser?.jabatan === 'Guest Viewer';
   const isSuperAdmin = isGodMode;
-  const isPatrol = ['Danru', 'Wadanru', 'Anggota'].includes(currentUser?.jabatan);
+  const isPatrol = ['Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)'].includes(currentUser?.jabatan);
 
   // Public complaint form — accessible without login via QR code or direct URL
   const isPublicComplaint = typeof window !== 'undefined' && window.location.search.includes('complaint');
@@ -1390,6 +1463,9 @@ export default function App() {
               <button onClick={() => handleNavClick('user-management')} className={`nav-tab-btn ${currentTab === 'user-management' ? 'active' : ''}`}>
                 <Users size={18} /> <span>Management User</span>
               </button>
+              <button onClick={() => handleNavClick('roster')} className={`nav-tab-btn ${currentTab === 'roster' ? 'active' : ''}`}>
+                <Calendar size={18} /> <span>Roster Jadwal Bulanan</span>
+              </button>
               <button onClick={() => handleNavClick('backup')} className={`nav-tab-btn ${currentTab === 'backup' ? 'active' : ''}`}>
                 <Database size={18} /> <span>Backup & Restore</span>
               </button>
@@ -1430,6 +1506,9 @@ export default function App() {
               <button onClick={() => handleNavClick('user-management')} className={`nav-tab-btn ${currentTab === 'user-management' ? 'active' : ''}`}>
                 <Users size={18} /> <span>Management User</span>
               </button>
+              <button onClick={() => handleNavClick('roster')} className={`nav-tab-btn ${currentTab === 'roster' ? 'active' : ''}`}>
+                <Calendar size={18} /> <span>Roster Jadwal Bulanan</span>
+              </button>
             </>
           )}
 
@@ -1453,6 +1532,9 @@ export default function App() {
                   </button>
                   <button onClick={() => handleNavClick('reports')} className={`nav-tab-btn ${currentTab === 'reports' ? 'active' : ''}`}>
                     <FileSpreadsheet size={18} /> <span>Laporan & Log Temuan</span>
+                  </button>
+                  <button onClick={() => handleNavClick('user-management')} className={`nav-tab-btn ${currentTab === 'user-management' ? 'active' : ''}`}>
+                    <Users size={18} /> <span>Management Anggota</span>
                   </button>
                 </>
               )}
@@ -1502,6 +1584,7 @@ export default function App() {
                 {currentTab === 'reports' && 'Laporan Patroli & Log Temuan'}
                 {currentTab === 'guard-simulator' && (isGodMode ? 'Simulasi HP Petugas' : 'Aplikasi Patroli')}
                 {currentTab === 'user-management' && 'Management User'}
+                {currentTab === 'roster' && 'Roster Jadwal Kerja Bulanan'}
                 {currentTab === 'backup' && 'Backup & Restore Data'}
                 {currentTab === 'lapor' && 'Lapor Cepat'}
                 {currentTab === 'complaint' && 'Komplain Masuk & Management Tiket'}
@@ -1515,6 +1598,7 @@ export default function App() {
                 {currentTab === 'reports' && 'Filter laporan patroli harian/shift, ekspor ke PDF/Excel, dan follow-up temuan.'}
                 {currentTab === 'guard-simulator' && (isGodMode ? 'Uji coba alur patroli petugas security menggunakan HP virtual.' : 'Aplikasi patroli untuk scan barcode, laporan temuan, dan catatan mutasi.')}
                 {currentTab === 'user-management' && 'Kelola user, tambah anggota baru, atur role dan akses sistem.'}
+                {currentTab === 'roster' && 'Input jadwal shift bulanan per personil: P, S, M, MD1, MD2, KH1, KH2, BKO, X.'}
                 {currentTab === 'backup' && 'Ekspor dan impor seluruh data sistem untuk keamanan data.'}
                 {currentTab === 'lapor' && 'Form pengisian laporan cepat patroli dan mutasi kejadian.'}
                 {currentTab === 'complaint' && 'Kelola komplain masuk dari tenant/pelanggan, disposisi ke departemen, dan pantau status tiket.'}
@@ -1549,7 +1633,8 @@ export default function App() {
           {currentTab === 'absensi' && (isGodMode || isAdmin || ['Danru', 'Wadanru'].includes(currentUser.jabatan)) && (
             <AbsensiRegu 
               users={users} 
-              areas={areas} 
+              areas={areas}
+              posList={posList}
               attendanceLogs={attendanceLogs} 
               currentUser={currentUser}
               onUpdateUser={handleUpdateUser}
@@ -1592,12 +1677,12 @@ export default function App() {
 
           {currentTab === 'barcodes' && (isGodMode || (isAdmin && !isClient)) && (
             <Suspense fallback={<div className="loading-pulse" style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Memuat...</div>}>
-            <BarcodeGenerator areas={areas} onAddArea={handleAddArea} users={users} onAddUser={handleAddUser} addToast={addToast} />
+            <BarcodeGenerator areas={areas} onAddArea={handleAddArea} onUpdateArea={handleUpdateArea} onDeleteArea={handleDeleteArea} posList={posList} onAddPos={handleAddPos} onUpdatePos={handleUpdatePos} onDeletePos={handleDeletePos} users={users} onAddUser={handleAddUser} addToast={addToast} />
             </Suspense>
           )}
 
           {currentTab === 'mutasi' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
-            <MutasiPenjagaan currentUser={currentUser} logs={mutasiLogs} onAddLog={handleAddMutasi} onDeleteLog={handleDeleteMutasi} areas={areas} />
+            <MutasiPenjagaan currentUser={currentUser} logs={mutasiLogs} onAddLog={handleAddMutasi} onDeleteLog={handleDeleteMutasi} areas={areas} posList={posList} />
           )}
 
           {currentTab === 'reports' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
@@ -1607,14 +1692,18 @@ export default function App() {
           {currentTab === 'guard-simulator' && currentUser && (isGodMode || ['Danru', 'Wadanru', 'Anggota'].includes(currentUser.jabatan)) && (
             <div className="mobile-simulator-container">
               <Suspense fallback={<div className="loading-pulse" style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Memuat Panel Patroli...</div>}>
-              <SecurityPatrolApp currentUser={currentUser} areas={areas} attendanceLogs={attendanceLogs} reports={reports} findings={findings} mutasiLogs={mutasiLogs} onAddReport={handleAddReport} onAddLog={handleAddMutasi} onTriggerSOS={triggerSOS} />
+              <SecurityPatrolApp currentUser={currentUser} areas={areas} posList={posList} attendanceLogs={attendanceLogs} reports={reports} findings={findings} mutasiLogs={mutasiLogs} onAddReport={handleAddReport} onAddLog={handleAddMutasi} onTriggerSOS={triggerSOS} />
               </Suspense>
             </div>
           )}
 
-          {currentTab === 'user-management' && (isGodMode || isAdmin) && (
+          {currentTab === 'user-management' && (isGodMode || isAdmin || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
             <UserManagement users={users} currentUser={currentUser} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
           )}
+
+          {currentTab === 'roster' && (isGodMode || isAdmin) && (
+            <RosterManagement users={users} currentUser={currentUser} />
+          )}  
 
           {currentTab === 'backup' && isSuperAdmin && (
             <div style={{ padding: '1rem 0' }}>
@@ -1623,7 +1712,7 @@ export default function App() {
           )}
 
           {currentTab === 'lapor' && isPatrol && (
-            <LaporForm currentUser={currentUser} areas={areas} onAddReport={handleAddReport} onAddLog={handleAddMutasi} />
+            <LaporForm currentUser={currentUser} areas={areas} posList={posList} onAddReport={handleAddReport} onAddLog={handleAddMutasi} />
           )}
 
           {currentTab === 'complaint' && (isGodMode || (isAdmin && !isClient)) && (

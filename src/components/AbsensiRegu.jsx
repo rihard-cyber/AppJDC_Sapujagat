@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Calendar, Users, MapPin, Clock, CheckCircle2, UserCheck, RefreshCw, 
   ClipboardList, HelpCircle, MessageSquare, Phone, AlertTriangle, Check, 
-  User, ExternalLink, Shield, Activity, Edit2, Save, X
+  User, ExternalLink, Shield, Activity, Edit2, Save, X, BookOpen
 } from 'lucide-react';
+import { SHIFT_CODES, getRoster, getYearMonth, getDatesInMonth } from '../data/rosterData';
 
 export default function AbsensiRegu({ 
   users, 
-  areas, 
+  areas,
+  posList = [],
   attendanceLogs, 
   onAddAttendance,
   currentUser,
@@ -39,12 +41,11 @@ export default function AbsensiRegu({
   // Rows state for table editing
   const [rows, setRows] = useState([]);
 
-  // Get time string by shift
+  // Get time string by shift code (all JDC codes)
   const getJamDinas = (shiftCode) => {
-    if (shiftCode === 'P') return '06.00 - 14.00';
-    if (shiftCode === 'S') return '14.00 - 22.00';
-    if (shiftCode === 'M') return '22.00 - 06.00';
-    return '08.00 - 17.00'; // Khusus
+    const info = SHIFT_CODES[shiftCode];
+    if (info) return info.jam.replace(':', '.').replace(' - ', ' - ').replace(/:(\d{2})/g, '.$1');
+    return '-';
   };
 
   // Re-generate table rows when Regu or Shift changes
@@ -57,8 +58,8 @@ export default function AbsensiRegu({
       setRows(existingLog.details);
     } else {
       const defaultRows = reguMembers.map((member, index) => {
-        const areaIndex = index % (areas.length || 1);
-        const defaultArea = areas[areaIndex] ? areas[areaIndex].titik : '';
+        const posIndex = index % (posList.length || 1);
+        const defaultPos = posList[posIndex] ? posList[posIndex].titik : '';
         
         return {
           personilId: member.id,
@@ -67,7 +68,7 @@ export default function AbsensiRegu({
           status: 'Hadir',
           alasan: '',
           penggantiId: '',
-          posPlotting: defaultArea,
+          posPlotting: defaultPos,
           jamDinas: getJamDinas(selectedShift)
         };
       });
@@ -123,12 +124,39 @@ export default function AbsensiRegu({
   };
 
   // Get substitute options
-  const substituteOptions = users.filter(u => u.regu !== selectedRegu && ['Danru', 'Wadanru', 'Anggota'].includes(u.jabatan));
+  const substituteOptions = users.filter(u => u.regu !== selectedRegu && ['Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)'].includes(u.jabatan));
 
   // Find if plotting has been saved today for the selected regu
-  const todayAttendance = attendanceLogs.find(
-    log => log.tanggal === todayStr && log.regu === selectedRegu
-  );
+  // Aggregates from both traditional and roster-based logs
+  const todayAttendance = (() => {
+    const tradLog = attendanceLogs.find(
+      log => log.tanggal === todayStr && log.regu === selectedRegu
+    );
+    const rosterDetails = [];
+    attendanceLogs.forEach(log => {
+      if (log.tanggal === todayStr && log.isRosterBased) {
+        (log.details || []).forEach(d => {
+          const user = users.find(u => u.id === d.personilId);
+          if (user && user.regu === selectedRegu) rosterDetails.push(d);
+        });
+      }
+    });
+    if (tradLog) {
+      if (rosterDetails.length === 0) return tradLog;
+      const seen = new Set((tradLog.details || []).map(d => String(d.personilId || d.userId)));
+      const merged = [...(tradLog.details || [])];
+      rosterDetails.forEach(d => {
+        const key = String(d.personilId || d.userId);
+        if (!seen.has(key)) { seen.add(key); merged.push(d); }
+      });
+      return { ...tradLog, details: merged };
+    }
+    if (rosterDetails.length === 0) return null;
+    return {
+      tanggal: todayStr, regu: selectedRegu, shift: 'Roster', jamDinas: '-',
+      details: rosterDetails
+    };
+  })();
 
   // Helper to determine status and counts for today
   const getMemberStatus = (member) => {
@@ -252,71 +280,27 @@ _Sistem Manajemen Keamanan JDC_`;
         overflowX: 'auto',
         whiteSpace: 'nowrap'
       }}>
-        <button 
-          type="button"
-          onClick={() => setActiveTab('dashboard')} 
-          style={{ 
-            padding: '0.6rem 1.2rem', 
-            borderRadius: '8px', 
-            border: activeTab === 'dashboard' ? '1px solid var(--color-primary)' : '1px solid transparent', 
-            background: activeTab === 'dashboard' ? 'rgba(59, 130, 246, 0.15)' : 'transparent', 
-            color: activeTab === 'dashboard' ? 'var(--color-primary)' : 'var(--text-secondary)', 
-            fontWeight: 700, 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.4rem', 
-            cursor: 'pointer',
-            fontSize: '0.85rem',
-            transition: 'all 0.2s',
-            fontFamily: 'var(--font-sans)'
-          }}
-        >
-          <Activity size={16} /> Dashboard Regu
-        </button>
-        
-        <button 
-          type="button"
-          onClick={() => setActiveTab('form')} 
-          style={{ 
-            padding: '0.6rem 1.2rem', 
-            borderRadius: '8px', 
-            border: activeTab === 'form' ? '1px solid var(--color-primary)' : '1px solid transparent', 
-            background: activeTab === 'form' ? 'rgba(59, 130, 246, 0.15)' : 'transparent', 
-            color: activeTab === 'form' ? 'var(--color-primary)' : 'var(--text-secondary)', 
-            fontWeight: 700, 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.4rem', 
-            cursor: 'pointer',
-            fontSize: '0.85rem',
-            transition: 'all 0.2s',
-            fontFamily: 'var(--font-sans)'
-          }}
-        >
-          <ClipboardList size={16} /> Form Absensi & Plotting
-        </button>
-        
-        <button 
-          type="button"
-          onClick={() => setActiveTab('history')} 
-          style={{ 
-            padding: '0.6rem 1.2rem', 
-            borderRadius: '8px', 
-            border: activeTab === 'history' ? '1px solid var(--color-primary)' : '1px solid transparent', 
-            background: activeTab === 'history' ? 'rgba(59, 130, 246, 0.15)' : 'transparent', 
-            color: activeTab === 'history' ? 'var(--color-primary)' : 'var(--text-secondary)', 
-            fontWeight: 700, 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.4rem', 
-            cursor: 'pointer',
-            fontSize: '0.85rem',
-            transition: 'all 0.2s',
-            fontFamily: 'var(--font-sans)'
-          }}
-        >
-          <UserCheck size={16} /> Histori Absensi
-        </button>
+        {[{ id: 'roster-daily', icon: <BookOpen size={16}/>, label: '📅 Absensi Harian (Roster)' },
+          { id: 'dashboard',    icon: <Activity size={16}/>,     label: 'Dashboard Regu' },
+          { id: 'form',         icon: <ClipboardList size={16}/>, label: 'Form Absensi Manual' },
+          { id: 'history',      icon: <UserCheck size={16}/>,     label: 'Histori Absensi' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: '0.6rem 1.2rem', borderRadius: '8px',
+              border: activeTab === tab.id ? '1px solid var(--color-primary)' : '1px solid transparent',
+              background: activeTab === tab.id ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+              color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--text-secondary)',
+              fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem',
+              cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s', fontFamily: 'var(--font-sans)'
+            }}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* REGU & METADATA BAR */}
@@ -342,12 +326,11 @@ _Sistem Manajemen Keamanan JDC_`;
               value={selectedShift} 
               onChange={e => setSelectedShift(e.target.value)} 
               className="modern-select"
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.82rem', minWidth: '180px' }}
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.82rem', minWidth: '200px' }}
             >
-              <option value="P">P (Pagi: 06:00-14:00)</option>
-              <option value="S">S (Siang: 14:00-22:00)</option>
-              <option value="M">M (Malam: 22:00-06:00)</option>
-              <option value="Kh">Kh (Khusus)</option>
+              {Object.entries(SHIFT_CODES).filter(([c]) => c !== 'X').map(([code, info]) => (
+                <option key={code} value={code}>{code} ({info.label}: {info.jam})</option>
+              ))}
             </select>
           </div>
         </div>
@@ -357,6 +340,21 @@ _Sistem Manajemen Keamanan JDC_`;
           <strong style={{ color: 'var(--color-primary)' }}>{hari}, {todayStr}</strong>
         </div>
       </div>
+
+      {/* ========================================== */}
+      {/* TAB 0: ABSENSI HARIAN BERDASARKAN ROSTER */}
+      {/* ========================================== */}
+      {activeTab === 'roster-daily' && (
+        <AbsensiRosterHarian
+          users={users}
+          posList={posList}
+          attendanceLogs={attendanceLogs}
+          onAddAttendance={onAddAttendance}
+          reports={reports}
+          todayStr={todayStr}
+          getJamDinas={getJamDinas}
+        />
+      )}
 
       {/* ========================================== */}
       {/* TAB 1: DASHBOARD REGU */}
@@ -664,10 +662,9 @@ _Sistem Manajemen Keamanan JDC_`;
               <div className="step-field">
                 <label><Clock size={12} /> SHIFT JAGA</label>
                 <select value={selectedShift} onChange={e => setSelectedShift(e.target.value)} className="modern-select">
-                  <option value="P">P (Pagi: 06:00-14:00)</option>
-                  <option value="S">S (Siang: 14:00-22:00)</option>
-                  <option value="M">M (Malam: 22:00-06:00)</option>
-                  <option value="Kh">Kh (Khusus)</option>
+                  {Object.entries(SHIFT_CODES).filter(([c]) => c !== 'X').map(([code, info]) => (
+                    <option key={code} value={code}>{code} ({info.label}: {info.jam})</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -749,8 +746,8 @@ _Sistem Manajemen Keamanan JDC_`;
                             style={{ padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}
                           >
                             <option value="-">-</option>
-                            {areas.map(a => (
-                              <option key={a.id} value={a.titik}>{a.titik}</option>
+                            {posList.map(p => (
+                              <option key={p.id} value={p.titik}>{p.titik}</option>
                             ))}
                           </select>
                         </td>
@@ -819,6 +816,211 @@ _Sistem Manajemen Keamanan JDC_`;
         </div>
       )}
 
+    </div>
+  );
+}
+
+
+// ─── Sub-komponen: Absensi Harian Berbasis Roster ────────────────────────────
+function AbsensiRosterHarian({ users, posList, attendanceLogs, onAddAttendance, reports, todayStr, getJamDinas }) {
+  const yearMonth = getYearMonth(new Date(todayStr));
+  const rosterData = getRoster(yearMonth);
+
+  const scheduledByShift = useMemo(() => {
+    const map = {};
+    Object.entries(rosterData).forEach(([userId, dates]) => {
+      const code = dates[todayStr];
+      if (!code || code === 'X') return;
+      const user = users.find(u => String(u.id) === String(userId));
+      if (!user) return;
+      if (!map[code]) map[code] = [];
+      map[code].push({ user, shiftCode: code });
+    });
+    return map;
+  }, [rosterData, users, todayStr]);
+
+  const activeShifts = useMemo(() => Object.keys(scheduledByShift).sort(), [scheduledByShift]);
+  const [selectedShift, setSelectedShift] = useState(() => activeShifts[0] || 'P');
+  const [extraUsers, setExtraUsers] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [saveStatus, setSaveStatus] = useState('');
+
+  useEffect(() => {
+    const shift = selectedShift;
+    const existingLog = attendanceLogs.find(
+      l => l.tanggal === todayStr && l.shift === shift && l.isRosterBased
+    );
+    if (existingLog) {
+      setRows(existingLog.details);
+      setExtraUsers([]);
+    } else {
+      const scheduled = (scheduledByShift[shift] || []).map(({ user }) => ({
+        personilId: user.id,
+        nama: user.nama,
+        jabatan: user.jabatan,
+        regu: user.regu || '-',
+        status: 'Hadir',
+        alasan: '',
+        penggantiId: '',
+        posPlotting: posList[0]?.titik || '-',
+        jamDinas: getJamDinas(shift)
+      }));
+      setRows(scheduled);
+      setExtraUsers([]);
+    }
+  }, [selectedShift, scheduledByShift, attendanceLogs, todayStr, posList]);
+
+  const handleRowChange = (idx, field, value) => {
+    setRows(prev => prev.map((row, i) => {
+      if (i !== idx) return row;
+      const updated = { ...row, [field]: value };
+      if (field === 'status') {
+        if (['Sakit', 'Cuti', 'Mangkir'].includes(value)) { updated.posPlotting = '-'; updated.alasan = value; }
+        else if (value === 'Hadir') { updated.alasan = ''; }
+      }
+      return updated;
+    }));
+  };
+
+  const handleAddExtra = () => {
+    const noSchedule = users.filter(u => {
+      const code = rosterData[String(u.id)]?.[todayStr];
+      return (!code || code === 'X') && ['Danru','Wadanru','Anggota','BKO','KH (Khusus)'].includes(u.jabatan);
+    });
+    setExtraUsers(noSchedule);
+  };
+
+  const handleAddExtraUser = (userId) => {
+    const user = users.find(u => String(u.id) === String(userId));
+    if (!user || rows.find(r => String(r.personilId) === String(userId))) return;
+    setRows(prev => [...prev, {
+      personilId: user.id, nama: user.nama, jabatan: user.jabatan, regu: user.regu || '-',
+      status: 'Tukar Shift', alasan: 'Backup / Lembur', penggantiId: '',
+      posPlotting: posList[0]?.titik || '-', jamDinas: getJamDinas(selectedShift)
+    }]);
+    setExtraUsers([]);
+  };
+
+  const handleSave = () => {
+    if (rows.length === 0) { alert('Tidak ada personil yang dijadwalkan.'); return; }
+    onAddAttendance({
+      tanggal: todayStr,
+      hari: ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][new Date(todayStr).getDay()],
+      regu: `Roster-${selectedShift}`,
+      shift: selectedShift,
+      jamDinas: getJamDinas(selectedShift),
+      isRosterBased: true,
+      details: rows
+    });
+    setSaveStatus('✓ Absensi harian berhasil disimpan!');
+    setTimeout(() => setSaveStatus(''), 3000);
+  };
+
+  if (activeShifts.length === 0) {
+    return (
+      <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ fontSize: '2.5rem' }}>📅</div>
+        <h4 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Belum Ada Roster Hari Ini</h4>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', maxWidth: '400px', lineHeight: '1.5' }}>
+          Jadwal kerja untuk hari ini (<strong>{todayStr}</strong>) belum diinput di Roster Jadwal Bulanan. Minta Admin/SPV untuk mengisinya.
+        </p>
+      </div>
+    );
+  }
+
+  const shiftInfo = SHIFT_CODES[selectedShift] || {};
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          {activeShifts.map(code => {
+            const info = SHIFT_CODES[code] || {};
+            return (
+              <button key={code} onClick={() => setSelectedShift(code)} style={{
+                padding: '0.45rem 0.9rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700,
+                border: `2px solid ${selectedShift === code ? (info.color || 'var(--color-primary)') : 'var(--border-glass)'}`,
+                background: selectedShift === code ? (info.bg || 'rgba(59,130,246,0.12)') : 'transparent',
+                color: selectedShift === code ? (info.color || 'var(--color-primary)') : 'var(--text-secondary)', cursor: 'pointer'
+              }}>
+                {code} — {info.label || code} ({info.jam || '-'}) · {(scheduledByShift[code] || []).length} org
+              </button>
+            );
+          })}
+        </div>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>📅 {todayStr}</span>
+      </div>
+
+      <div className="glass-panel" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h4 style={{ fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Shield size={16} style={{ color: shiftInfo.color || 'var(--color-primary)' }} />
+            Shift {selectedShift} — {shiftInfo.label} ({shiftInfo.jam})
+            <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '0.4rem' }}>{rows.length} personil terjadwal</span>
+          </h4>
+          <button onClick={handleAddExtra} style={{ padding: '0.35rem 0.75rem', borderRadius: '6px', border: '1px dashed var(--color-primary)', background: 'rgba(59,130,246,0.08)', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+            + Tambah Ekstra / Lembur
+          </button>
+        </div>
+
+        {extraUsers.length > 0 && (
+          <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'rgba(59,130,246,0.07)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.2)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-primary)' }}>Pilih personil ekstra:</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              {extraUsers.map(u => (
+                <button key={u.id} onClick={() => handleAddExtraUser(u.id)} style={{ padding: '0.25rem 0.6rem', borderRadius: '5px', border: '1px solid var(--border-glass)', background: 'var(--bg-card)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem' }}>
+                  {u.nama} ({u.jabatan})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '750px', fontSize: '0.8rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-glass)', background: 'rgba(255,255,255,0.01)' }}>
+                {['No', 'Nama', 'Jabatan / Regu', 'Status Hadir', 'Keterangan', 'Plotting Pos', 'Jam Dinas'].map(h => (
+                  <th key={h} style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr><td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Tidak ada personil dijadwalkan untuk shift ini.</td></tr>
+              ) : rows.map((row, idx) => (
+                <tr key={`${row.personilId}-${idx}`} style={{ borderBottom: '1px solid var(--border-glass)' }}>
+                  <td style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>{idx + 1}</td>
+                  <td style={{ padding: '0.65rem 0.75rem', fontWeight: 700 }}>{row.nama}</td>
+                  <td style={{ padding: '0.65rem 0.75rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{row.jabatan} · {row.regu}</td>
+                  <td style={{ padding: '0.65rem 0.75rem' }}>
+                    <select value={row.status} onChange={e => handleRowChange(idx, 'status', e.target.value)} className="modern-select" style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}>
+                      {['Hadir', 'Tukar Shift', 'Sakit', 'Cuti', 'Mangkir', 'Tidak Hadir'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ padding: '0.65rem 0.75rem' }}>
+                    <input type="text" value={row.alasan} onChange={e => handleRowChange(idx, 'alasan', e.target.value)} className="modern-input" style={{ fontSize: '0.75rem', padding: '0.3rem 0.5rem' }} placeholder="-" />
+                  </td>
+                  <td style={{ padding: '0.65rem 0.75rem' }}>
+                    <select value={row.posPlotting} onChange={e => handleRowChange(idx, 'posPlotting', e.target.value)} className="modern-select" style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }} disabled={['Sakit','Cuti','Mangkir'].includes(row.status)}>
+                      <option value="-">-</option>
+                      {posList.map(p => <option key={p.id} value={p.titik}>{p.titik}</option>)}
+                    </select>
+                  </td>
+                  <td style={{ padding: '0.65rem 0.75rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>{row.jamDinas}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', gap: '1rem', alignItems: 'center' }}>
+          {saveStatus && <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>{saveStatus}</span>}
+          <button onClick={handleSave} className="btn-primary" style={{ padding: '0.6rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <CheckCircle2 size={15} /> Simpan Absensi Shift {selectedShift}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

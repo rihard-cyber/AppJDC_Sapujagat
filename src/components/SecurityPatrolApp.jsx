@@ -31,7 +31,7 @@ const KATEGORI_MUTASI = [
 ];
 
 export default function SecurityPatrolApp({
-  currentUser, areas, attendanceLogs = [], reports = [], findings = [], mutasiLogs = [],
+  currentUser, areas, posList = [], attendanceLogs = [], reports = [], findings = [], mutasiLogs = [],
   onAddReport, onTriggerSOS, onAddLog
 }) {
   const [online, setOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);

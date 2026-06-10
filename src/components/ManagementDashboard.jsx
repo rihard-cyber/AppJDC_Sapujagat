@@ -78,38 +78,82 @@ export default function ManagementDashboard({
   const reportsToday = reports.filter(r => r.timestamp.startsWith(today));
   const totalPatrolsToday = reportsToday.length;
   const patrolledAreasToday = new Set(reportsToday.map(r => r.areaId));
-  const todayAttendance = attendanceLogs ? attendanceLogs.find(log => log.tanggal === today) : null;
+  
+  // ── Multi-shift: ambil semua log absensi hari ini (dari semua shift) ─────────
+  const todayAllLogs = attendanceLogs ? attendanceLogs.filter(log => log.tanggal === today) : [];
+  const todayAttendance = todayAllLogs.length > 0 ? todayAllLogs[0] : null; // tetap ada untuk backward compat
 
   let kpiHadir = 0, kpiAlpha = 0, kpiSakit = 0, kpiIzin = 0;
-  if (todayAttendance) {
-    todayAttendance.details.forEach(d => {
-      if (d.status === 'Hadir' || d.status === 'Tukar Shift') kpiHadir++;
-      else if (d.status === 'Sakit') kpiSakit++;
-      else if (d.status === 'Cuti') kpiIzin++;
-      else if (d.status === 'Tidak Hadir' || d.status === 'Mangkir') kpiAlpha++;
+  if (todayAllLogs.length > 0) {
+    // Agregasi semua shift hari ini — hindari duplikat personil yang sama lintas shift
+    const seen = new Set();
+    todayAllLogs.forEach(log => {
+      (log.details || []).forEach(d => {
+        const key = String(d.personilId || d.userId);
+        if (seen.has(key)) return;
+        seen.add(key);
+        if (d.status === 'Hadir' || d.status === 'Tukar Shift') kpiHadir++;
+        else if (d.status === 'Sakit') kpiSakit++;
+        else if (d.status === 'Cuti') kpiIzin++;
+        else if (d.status === 'Tidak Hadir' || d.status === 'Mangkir') kpiAlpha++;
+      });
     });
   } else {
     kpiHadir = users.filter(u => ['Danru', 'Wadanru', 'Anggota'].includes(u.jabatan)).length;
   }
 
-  const totalFindingsOpen = findings.filter(f => f.status !== 'Closed').length;
+  const dispositionedComplaintsAsFindings = complaints
+    .filter(c => c.department && c.status !== 'Baru')
+    .map(c => ({
+      id: `complaint-${c.id}`,
+      isFromComplaint: true,
+      originalId: c.id,
+      department: c.department,
+      status: c.status === 'Selesai' ? 'Closed' : c.status === 'Diproses' ? 'In Progress' : 'Open',
+      severity: 'Sedang',
+      waStatus: c.waStatus || '',
+      tanggal: c.createdAt,
+      kategori: c.category || 'Komplain Tenant',
+      detail: c.description,
+      area: `${c.floor || ''} - ${c.tenant || ''}`,
+      pelapor: c.name,
+      waSentAt: c.waSentAt,
+      foto: c.photos && c.photos.length > 0 ? c.photos[0] : null,
+      complaintData: c
+    }));
+
+  const combinedFindings = [...findings, ...dispositionedComplaintsAsFindings].sort((a, b) => new Date(b.tanggal || 0) - new Date(a.tanggal || 0));
+
+  const totalFindingsOpen = combinedFindings.filter(f => f.status !== 'Closed').length;
   const unvisitedAreas = areas.filter(a => !patrolledAreasToday.has(a.id));
   const missedAreas = unvisitedAreas.slice(0, 4);
 
   // ── Findings berdasarkan dept ──────────────────────────────────────────────
   const findingsByDept = {
-    Teknisi:  findings.filter(f => f.department === 'Teknisi'),
-    Cleaning: findings.filter(f => f.department === 'Cleaning'),
-    Keamanan: findings.filter(f => f.department === 'Keamanan'),
+    Teknisi:  combinedFindings.filter(f => f.department === 'Teknisi'),
+    Cleaning: combinedFindings.filter(f => f.department === 'Cleaning'),
+    Keamanan: combinedFindings.filter(f => f.department === 'Keamanan'),
   };
-  const filteredFindings = activeTab === 'semua' ? findings : findingsByDept[activeTab] || [];
+  const filteredFindings = activeTab === 'semua' ? combinedFindings : findingsByDept[activeTab] || [];
 
   // WA already sent count
-  const waSentCount = dept => findings.filter(f => f.department === dept && f.waStatus?.startsWith('Terkirim')).length;
+  const waSentCount = dept => combinedFindings.filter(f => f.department === dept && f.waStatus?.startsWith('Terkirim')).length;
 
   // ── Dispatch handler ───────────────────────────────────────────────────────
   const handleDispatch = (finding, dept) => {
-    if (onDispatchFinding) onDispatchFinding(finding.id, dept);
+    if (finding.isFromComplaint) {
+      const history = [...(finding.complaintData.history || []), { status: 'Diproses', timestamp: new Date().toISOString(), note: `Didisposisikan ulang ke ${dept} dari Dashboard` }];
+      if (onUpdateComplaint) {
+        onUpdateComplaint(finding.originalId, {
+          department: dept, status: 'Diproses', history,
+          waStatus: `Terkirim (${dept})`,
+          waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+          updatedAt: new Date().toISOString()
+        });
+      }
+    } else {
+      if (onDispatchFinding) onDispatchFinding(finding.id, dept);
+    }
     setShowWASent(prev => ({ ...prev, [finding.id]: dept }));
     window.open(buildWALink(finding, dept), '_blank', 'noopener');
   };
@@ -123,7 +167,7 @@ export default function ManagementDashboard({
   const hariNames = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
   const graphMinggu = last7Days.map(date => {
     const dayReports = reports.filter(r => r.timestamp.startsWith(date));
-    const dayFindings = findings.filter(f => f.tanggal?.startsWith(date));
+    const dayFindings = combinedFindings.filter(f => f.tanggal?.startsWith(date));
     return { label: hariNames[new Date(date).getDay()], patrols: dayReports.length, findings: dayFindings.length };
   });
   const graphBulan = Array.from({length: 4}, (_, i) => {
@@ -144,23 +188,28 @@ export default function ManagementDashboard({
   const activeGraph = graphData[graphFilter];
   const maxPatrolVal = Math.max(...activeGraph.patrols) * 1.15;
 
-  // ── Attendance per Regu ────────────────────────────────────────────────────
+  // ── Attendance per Regu (aggregate all shifts) ──────────────────────────────
   const reguList = ['Regu A', 'Regu B', 'Regu C', 'Regu D'];
   const reguAttendance = reguList.map(regu => {
     const members = users.filter(u => u.regu === regu && ['Danru', 'Wadanru', 'Anggota'].includes(u.jabatan));
     const total = members.length;
     let hadir = 0, alpha = 0, sakit = 0, izin = 0;
-    if (todayAttendance) {
-      todayAttendance.details.forEach(d => {
-        const user = members.find(u => u.id === d.userId);
-        if (user) {
-          if (d.status === 'Hadir' || d.status === 'Tukar Shift') hadir++;
-          else if (d.status === 'Tidak Hadir' || d.status === 'Mangkir') alpha++;
-          else if (d.status === 'Sakit') sakit++;
-          else if (d.status === 'Cuti') izin++;
-        }
+    const seen = new Set();
+    todayAllLogs.forEach(log => {
+      (log.details || []).forEach(d => {
+        const uid = d.personilId || d.userId;
+        if (!uid) return;
+        const user = members.find(u => u.id === uid);
+        if (!user) return;
+        const key = String(uid);
+        if (seen.has(key)) return;
+        seen.add(key);
+        if (d.status === 'Hadir' || d.status === 'Tukar Shift') hadir++;
+        else if (d.status === 'Tidak Hadir' || d.status === 'Mangkir') alpha++;
+        else if (d.status === 'Sakit') sakit++;
+        else if (d.status === 'Cuti') izin++;
       });
-    }
+    });
     return { regu, total, hadir, alpha, sakit, izin, pct: total > 0 ? Math.round((hadir / total) * 100) : 0 };
   });
 
@@ -176,7 +225,7 @@ export default function ManagementDashboard({
   const patrolPct = areas.length > 0 ? (patrolledAreasToday.size / areas.length) * 100 : 0;
   const attendancePct = (kpiHadir + kpiAlpha + kpiSakit + kpiIzin) > 0
     ? (kpiHadir / (kpiHadir + kpiAlpha + kpiSakit + kpiIzin)) * 100 : 100;
-  const findingsClosed = findings.length > 0 ? (findings.filter(f => f.status === 'Closed').length / findings.length) * 100 : 100;
+  const findingsClosed = combinedFindings.length > 0 ? (combinedFindings.filter(f => f.status === 'Closed').length / combinedFindings.length) * 100 : 100;
   const complaintsResolved = complaints.length > 0 ? (complaints.filter(c => c.status === 'Selesai').length / complaints.length) * 100 : 100;
   const healthScore = Math.round(
     (patrolPct * 0.30) + (attendancePct * 0.25) + (findingsClosed * 0.25) + (complaintsResolved * 0.20)
@@ -185,9 +234,9 @@ export default function ManagementDashboard({
   const healthColor = healthScore >= 90 ? '#10b981' : healthScore >= 75 ? '#3b82f6' : healthScore >= 60 ? '#f59e0b' : '#ef4444';
 
   const generateAISummary = () => {
-    const unresolved = findings.filter(f => f.status !== 'Closed').length;
-    const critical = findings.filter(f => f.severity === 'Kritis' && f.status !== 'Closed').length;
-    const waSent = findings.filter(f => f.waStatus?.startsWith('Terkirim')).length;
+    const unresolved = combinedFindings.filter(f => f.status !== 'Closed').length;
+    const critical = combinedFindings.filter(f => f.severity === 'Kritis' && f.status !== 'Closed').length;
+    const waSent = combinedFindings.filter(f => f.waStatus?.startsWith('Terkirim')).length;
     return `Ringkasan SMPJDC: Hari ini tercatat ${totalPatrolsToday} scan patroli. ` +
       `${patrolledAreasToday.size} dari ${areas.length} area telah dijamah (${areas.length > 0 ? Math.round((patrolledAreasToday.size/areas.length)*100) : 0}% kepatuhan). ` +
       `Terdapat ${unresolved} tiket temuan aktif${critical > 0 ? `, ${critical} di antaranya KRITIS` : ''}. ` +
@@ -199,7 +248,7 @@ export default function ManagementDashboard({
   const getAreaStatus = (areaId) => {
     const ar = reportsToday.filter(r => r.areaId === areaId);
     if (!ar.length) return 'unvisited';
-    const hasActive = findings.some(f => f.reportId === ar[0].id && f.status !== 'Closed');
+    const hasActive = combinedFindings.some(f => f.reportId === ar[0].id && f.status !== 'Closed');
     return hasActive ? 'problematic' : 'patrolled';
   };
 
@@ -214,7 +263,7 @@ export default function ManagementDashboard({
   });
 
   // ── Presence keaktifan status calculation ──────────────────────────────────
-  const statsKeaktifan = users.filter(u => ['Danru', 'Wadanru', 'Anggota'].includes(u.jabatan)).map(member => {
+  const statsKeaktifan = users.filter(u => ['Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)'].includes(u.jabatan)).map(member => {
     let isOnline = false;
     if (member.lastActive) {
       const diffMs = new Date() - new Date(member.lastActive);
@@ -734,7 +783,7 @@ export default function ManagementDashboard({
       <div>
         <div className="command-tab-bar">
           <button className={`command-tab-btn ${activeCommandTab === 'temuan' ? 'active' : ''}`} onClick={() => setActiveCommandTab('temuan')}>
-            📋 Tiket Temuan & Disposisi ({findings.length})
+            📋 Tiket Temuan & Disposisi ({combinedFindings.length})
           </button>
           <button className={`command-tab-btn ${activeCommandTab === 'komplain' ? 'active' : ''}`} onClick={() => setActiveCommandTab('komplain')}>
             📩 Komplain Tenant ({complaints.length})
@@ -765,9 +814,22 @@ export default function ManagementDashboard({
                     {Object.entries(WA_CONTACTS).filter(([dept]) => dept !== 'semua').map(([dept, info]) => (
                       <button key={dept} onClick={() => {
                         selectedFindings.forEach((id, idx) => {
-                          const f = findings.find(fi => fi.id === id);
-                          if (f && onDispatchFinding) onDispatchFinding(id, dept);
+                          const f = combinedFindings.find(fi => fi.id === id);
                           if (f) {
+                            if (f.isFromComplaint) {
+                              const history = [...(f.complaintData.history || []), { status: 'Diproses', timestamp: new Date().toISOString(), note: `Didisposisikan ke ${dept} dari Dashboard Bulk` }];
+                              if (onUpdateComplaint) {
+                                onUpdateComplaint(f.originalId, {
+                                  department: dept, status: 'Diproses', history,
+                                  waStatus: `Terkirim (${dept})`,
+                                  waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+                                  updatedAt: new Date().toISOString()
+                                });
+                              }
+                            } else {
+                              if (onDispatchFinding) onDispatchFinding(f.id, dept);
+                            }
+                            setShowWASent(prev => ({ ...prev, [f.id]: dept }));
                             setTimeout(() => window.open(buildWALink(f, dept), '_blank', 'noopener'), idx * 300);
                           }
                         });
@@ -921,7 +983,17 @@ export default function ManagementDashboard({
                               {['Open', 'In Progress', 'Closed'].map(s => (
                                 <button
                                   key={s}
-                                  onClick={() => onUpdateStatus && onUpdateStatus(finding.id, s)}
+                                  onClick={() => {
+                                    if (finding.isFromComplaint) {
+                                      const mappedStatus = s === 'Closed' ? 'Selesai' : s === 'In Progress' ? 'Diproses' : 'Diterima';
+                                      const history = [...(finding.complaintData.history || []), { status: mappedStatus, timestamp: new Date().toISOString(), note: `Status diubah ke ${mappedStatus} dari Dashboard Temuan` }];
+                                      if (onUpdateComplaint) {
+                                        onUpdateComplaint(finding.originalId, { status: mappedStatus, history, updatedAt: new Date().toISOString() });
+                                      }
+                                    } else {
+                                      if (onUpdateStatus) onUpdateStatus(finding.id, s);
+                                    }
+                                  }}
                                   style={{
                                     padding: '0.25rem 0.6rem', fontSize: '0.68rem', borderRadius: '5px',
                                     border: finding.status === s ? `1.5px solid ${STATUS_COLOR[s]?.color}` : '1px solid var(--border-glass)',

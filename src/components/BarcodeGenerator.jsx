@@ -1,28 +1,9 @@
-/**
- * =======================================================
- *   SMPJDC SECURITY MANAGEMENT SYSTEM
- *   Module: Barcode & Checkpoint Generator
- *   Signed by: Richard Meha (by -Richard)
- *   Last Maintained: 2026-06-07
- *   Description: Master area checkpoint registration, QR sticker
- *                bulk printing (iframe) and blob downloading.
- * =======================================================
- */
-
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import { 
-  Plus, 
-  Download, 
-  Printer, 
-  Layers, 
-  Check,
-  Building,
-  User,
-  UserCheck,
-  Phone,
-  Hash,
-  RefreshCw,
-  AlertTriangle
+import {
+  Plus, Download, Printer, Layers, Check,
+  Building, User, UserCheck, Phone, Hash,
+  RefreshCw, AlertTriangle, Edit3, Trash2, X,
+  MapPin, Shield
 } from 'lucide-react';
 
 import QRCode from 'qrcode';
@@ -45,6 +26,17 @@ const FLOOR_OPTIONS = [
 
 const ZONE_OPTIONS = ['A', 'B', 'C', 'D'];
 
+const FLOOR_OPTIONS_POS = [
+  { value: 'Basement', label: 'Basement' },
+  { value: '1', label: 'Lantai 1' },
+  { value: '2 & 3', label: 'Lantai 2 & 3' },
+  { value: '4 & 5', label: 'Lantai 4 & 5' },
+  { value: '6 & 7', label: 'Lantai 6 & 7' },
+  { value: 'Halaman Depan', label: 'Halaman Depan' },
+  { value: 'Halaman Belakang', label: 'Halaman Belakang' },
+  { value: 'Parkir', label: 'Parkir' },
+];
+
 const QR_LOCATION_CODES = {
   'Basement': 'BSMT',
   '1': 'LT01','2': 'LT02','3': 'LT03','4': 'LT04','5': 'LT05','6': 'LT06',
@@ -63,8 +55,18 @@ const SHIFT_OPTIONS = [
   { value: 'Malam', label: 'Malam (22:00 - 06:00)' }
 ];
 
-export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, addToast }) {
-  // Single Area Creator state
+export default function BarcodeGenerator({
+  areas, onAddArea, onUpdateArea, onDeleteArea,
+  posList = [], onAddPos, onUpdatePos, onDeletePos,
+  users, onAddUser, addToast
+}) {
+  const [tab, setTab] = useState('checkpoint');
+  const [searchArea, setSearchArea] = useState('');
+  const [searchPos, setSearchPos] = useState('');
+  const [editArea, setEditArea] = useState(null);
+  const [editPos, setEditPos] = useState(null);
+
+  // ── Single Area Creator state ──
   const [floor, setFloor] = useState('1');
   const [floorCustom, setFloorCustom] = useState('');
   const [zone, setZone] = useState('Zone A');
@@ -76,13 +78,36 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, a
     catch { return 1; }
   });
 
+  // ── Edit Area state ──
+  const [eFloor, setEFloor] = useState('1');
+  const [eFloorCustom, setEFloorCustom] = useState('');
+  const [eZone, setEZone] = useState('A');
+  const [eZoneCustom, setEZoneCustom] = useState('');
+  const [eTitik, setETitik] = useState('');
+  const [eNomorTitik, setENomorTitik] = useState('');
+  const [eQrCode, setEQrCode] = useState('');
+
+  // ── Pos Jaga state ──
+  const [posLantai, setPosLantai] = useState('Basement');
+  const [posLantaiCustom, setPosLantaiCustom] = useState('');
+  const [posTitik, setPosTitik] = useState('');
+  const [posKeterangan, setPosKeterangan] = useState('');
+  const [posKode, setPosKode] = useState('');
+
+  // ── Edit Pos state ──
+  const [ePosLantai, setEPosLantai] = useState('Basement');
+  const [ePosLantaiCustom, setEPosLantaiCustom] = useState('');
+  const [ePosTitik, setEPosTitik] = useState('');
+  const [ePosKeterangan, setEPosKeterangan] = useState('');
+  const [ePosKode, setEPosKode] = useState('');
+
   useEffect(() => {
     const nums = areas.map(a => parseInt(a.nomorTitik, 10)).filter(n => !isNaN(n));
     const next = nums.length > 0 ? String(Math.max(...nums) + 1) : '1';
     if (!nomorTitik) setNomorTitik(next);
   }, [areas]);
 
-  // User & Role Creator state
+  // ── User & Role Creator state ──
   const [userName, setUserName] = useState('');
   const [userNrp, setUserNrp] = useState('');
   const [userRole, setUserRole] = useState('Anggota');
@@ -117,17 +142,6 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, a
     setUserAvatar(''); setUserPin(''); setUserRegu('Regu A');
     setUserShift('Pagi'); setUserHp('');
   };
-
-  // Bulk Generator state
-  const [bulkCount, setBulkCount] = useState(100);
-  const [generating, setGenerating] = useState(false);
-  const [genProgress, setGenProgress] = useState(0);
-  const [bulkDownloadReady, setBulkDownloadReady] = useState(false);
-
-  const [downloadingId, setDownloadingId] = useState(null);
-  const [printLoadingId, setPrintLoadingId] = useState(null);
-
-  const canvasRef = useRef(null);
 
   const floorFinal = floor === '__LAINNYA__' ? (floorCustom.trim() || 'Custom') : floor;
   const zoneFinal = zone === '__LAINNYA__' ? (zoneCustom.trim() || 'Custom') : zone;
@@ -244,98 +258,81 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, a
     }
   };
 
-  const handlePrintAllQRs = async () => {
-    if (areas.length === 0) {
-      if (addToast) addToast('Tidak ada master area untuk dicetak!', 'warning');
-      else alert('Tidak ada master area untuk dicetak!');
-      return;
-    }
-    
-    const printWin = window.open('', '_blank', 'width=500,height=700');
-    if (!printWin || printWin.closed || typeof printWin.closed === 'undefined') {
-      if (addToast) addToast('Izinkan popup untuk mencetak barcode', 'warning');
-      else alert('Izinkan popup untuk mencetak barcode, atau cetak manual.');
-      return;
-    }
-    if (addToast) addToast('Menyiapkan cetak semua QR...', 'info');
-    
-    try {
-      const qrDataUrls = await Promise.all(
-        areas.map(async (area) => {
-          return { area, dataUrl: await generateQRDataURL(area.qrCode) };
-        })
-      );
-    
-      let htmlContent = `
-        <html>
-          <head>
-            <title>Cetak Semua QR Checkpoint SMPJDC</title>
-            <style>
-              body {
-                font-family: 'Inter', sans-serif;
-                margin: 0;
-                padding: 0;
-                background: #fff;
-                color: #0b0f19;
-              }
-              .print-page {
-                page-break-after: always;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                min-height: 100vh;
-                box-sizing: border-box;
-                text-align: center;
-                padding: 40px;
-              }
-              .qr-card {
-                border: 4px double #0b0f19;
-                padding: 30px;
-                border-radius: 16px;
-                display: inline-block;
-                background: #fff;
-              }
-              img { width: 320px; height: 320px; margin-bottom: 20px; }
-              h2 { margin: 0 0 8px 0; font-size: 26px; letter-spacing: 1px; }
-              p { margin: 0; font-size: 16px; color: #444; }
-              .print-page:last-child { page-break-after: avoid; }
-              @media print { body { -webkit-print-color-adjust: exact; } }
-            </style>
-          </head>
-          <body>
-      `;
-      
-      qrDataUrls.forEach(({ area, dataUrl }) => {
-        htmlContent += `
-          <div class="print-page">
-            <div class="qr-card">
-              <img src="${dataUrl}" alt="QR" />
-              <h2>${area.qrCode}</h2>
-              <p style="font-weight: bold; margin-bottom: 5px;">${area.titik}</p>
-              <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
-            </div>
-          </div>
-        `;
-      });
-      
-      htmlContent += `
-        <script>
-          window.onload = function() {
-            setTimeout(function() { window.print(); }, 1500);
-          };
-        <\/script>
-          </body>
-        </html>
-      `;
-      
-      printWin.document.write(htmlContent);
-      printWin.document.close();
-    } catch (err) {
-      console.error('Print all QR failed:', err);
-      if (addToast) addToast('Gagal menyiapkan QR untuk cetak', 'danger');
-      printWin.close();
-    }
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [printLoadingId, setPrintLoadingId] = useState(null);
+  const [bulkCount, setBulkCount] = useState(100);
+  const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState(0);
+  const [bulkDownloadReady, setBulkDownloadReady] = useState(false);
+
+  // ── Edit Area handlers ──
+  const openEditArea = (area) => {
+    const isCustom = !FLOOR_OPTIONS.some(f => f.value === area.lantai);
+    setEFloor(isCustom ? '__LAINNYA__' : area.lantai);
+    setEFloorCustom(isCustom ? area.lantai : '');
+    setEZone(ZONE_OPTIONS.includes(area.zona) ? area.zona : '__LAINNYA__');
+    setEZoneCustom(ZONE_OPTIONS.includes(area.zona) ? '' : area.zona);
+    setETitik(area.titik);
+    setENomorTitik(area.nomorTitik || '');
+    setEQrCode(area.qrCode);
+    setEditArea(area);
+  };
+
+  const handleEditAreaSubmit = (e) => {
+    e.preventDefault();
+    if (!eTitik.trim()) { alert('Lokasi tidak boleh kosong!'); return; }
+    const eFloorFinal = eFloor === '__LAINNYA__' ? (eFloorCustom.trim() || 'Custom') : eFloor;
+    const eZoneFinal = eZone === '__LAINNYA__' ? (eZoneCustom.trim() || 'Custom') : eZone;
+    const eQrLocCode = QR_LOCATION_CODES[eFloor] || eFloorFinal.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const newQrCode = eNomorTitik.trim() ? `JDC-${eQrLocCode}-${eNomorTitik.trim()}` : eQrCode;
+    onUpdateArea(editArea.id, {
+      lantai: eFloorFinal,
+      zona: eZoneFinal,
+      nomorTitik: eNomorTitik.trim(),
+      titik: eTitik.trim(),
+      qrCode: newQrCode
+    });
+    setEditArea(null);
+  };
+
+  // ── Pos Jaga handlers ──
+  const handleAddPos = (e) => {
+    e.preventDefault();
+    if (!posTitik.trim()) { alert('Nama pos tidak boleh kosong!'); return; }
+    const lantaiFinal = posLantai === '__LAINNYA__' ? (posLantaiCustom.trim() || 'Custom') : posLantai;
+    onAddPos({
+      lantai: lantaiFinal,
+      titik: posTitik.trim(),
+      keterangan: posKeterangan.trim(),
+      kode: posKode.trim().toUpperCase()
+    });
+    setPosTitik('');
+    setPosKeterangan('');
+    setPosKode('');
+    setPosLantaiCustom('');
+  };
+
+  const openEditPos = (pos) => {
+    const isCustom = !FLOOR_OPTIONS_POS.some(f => f.value === pos.lantai);
+    setEPosLantai(isCustom ? '__LAINNYA__' : pos.lantai);
+    setEPosLantaiCustom(isCustom ? pos.lantai : '');
+    setEPosTitik(pos.titik);
+    setEPosKeterangan(pos.keterangan || '');
+    setEPosKode(pos.kode || '');
+    setEditPos(pos);
+  };
+
+  const handleEditPosSubmit = (e) => {
+    e.preventDefault();
+    if (!ePosTitik.trim()) { alert('Nama pos tidak boleh kosong!'); return; }
+    const lantaiFinal = ePosLantai === '__LAINNYA__' ? (ePosLantaiCustom.trim() || 'Custom') : ePosLantai;
+    onUpdatePos(editPos.id, {
+      lantai: lantaiFinal,
+      titik: ePosTitik.trim(),
+      keterangan: ePosKeterangan.trim(),
+      kode: ePosKode.trim().toUpperCase()
+    });
+    setEditPos(null);
   };
 
   const handleBulkGenerate = async () => {
@@ -368,272 +365,617 @@ export default function BarcodeGenerator({ areas, onAddArea, users, onAddUser, a
     setBulkDownloadReady(true);
   };
 
+  // ── Filters ──
+  const filteredAreas = useMemo(() => {
+    if (!searchArea.trim()) return areas;
+    const q = searchArea.toLowerCase();
+    return areas.filter(a =>
+      a.titik.toLowerCase().includes(q) ||
+      a.qrCode.toLowerCase().includes(q) ||
+      a.lantai.toLowerCase().includes(q) ||
+      a.zona.toLowerCase().includes(q)
+    );
+  }, [areas, searchArea]);
+
+  const filteredPosList = useMemo(() => {
+    if (!searchPos.trim()) return posList;
+    const q = searchPos.toLowerCase();
+    return posList.filter(p =>
+      p.titik.toLowerCase().includes(q) ||
+      p.keterangan?.toLowerCase().includes(q) ||
+      p.kode?.toLowerCase().includes(q) ||
+      p.lantai?.toLowerCase().includes(q)
+    );
+  }, [posList, searchPos]);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      
-      {/* Hidden Canvas for QR Rendering */}
-      <canvas ref={canvasRef} width="250" height="290" style={{ display: 'none' }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-      <div className="grid-cols-3" style={{ gap: '2rem' }}>
-        
-        {/* 1. SINGLE AREA REGISTRATION FORM */}
-        <div className="glass-panel panel-body" style={{ height: 'fit-content' }}>
-          <h3 className="section-title">
-            <Plus size={18} className="text-primary" style={{ flexShrink: 0 }} />
-            <span>Registrasi Area Baru</span>
-          </h3>
+      {/* ── TAB NAVIGATION ── */}
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.75rem' }}>
+        <button onClick={() => setTab('checkpoint')} style={{
+          padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
+          border: `1.5px solid ${tab === 'checkpoint' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+          background: tab === 'checkpoint' ? 'rgba(59,130,246,0.12)' : 'transparent',
+          color: tab === 'checkpoint' ? 'var(--color-primary)' : 'var(--text-secondary)',
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '0.35rem',
+          minHeight: '44px', touchAction: 'manipulation'
+        }}><QrCode size={16} /> Checkpoint Barcode</button>
+        <button onClick={() => setTab('posjaga')} style={{
+          padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
+          border: `1.5px solid ${tab === 'posjaga' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+          background: tab === 'posjaga' ? 'rgba(59,130,246,0.12)' : 'transparent',
+          color: tab === 'posjaga' ? 'var(--color-primary)' : 'var(--text-secondary)',
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '0.35rem',
+          minHeight: '44px', touchAction: 'manipulation'
+        }}><Shield size={16} /> Pos Jaga</button>
+        <button onClick={() => setTab('users')} style={{
+          padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700,
+          border: `1.5px solid ${tab === 'users' ? 'var(--color-primary)' : 'var(--border-glass)'}`,
+          background: tab === 'users' ? 'rgba(59,130,246,0.12)' : 'transparent',
+          color: tab === 'users' ? 'var(--color-primary)' : 'var(--text-secondary)',
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: '0.35rem',
+          minHeight: '44px', touchAction: 'manipulation'
+        }}><User size={16} /> Registrasi Anggota</button>
+      </div>
 
-          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-            
-            <div className="form-field">
-              <label className="form-label">LOKASI / GEDUNG</label>
-              <div className="form-input-wrap" style={{ opacity: 0.6 }}>
-                <Building size={16} />
-                <input type="text" value="SMPJDC - Jakarta Design Center" disabled className="form-input" />
+      {/* ════════════════════════════════════════════════════
+          TAB: CHECKPOINT BARCODE
+          ════════════════════════════════════════════════════ */}
+      {tab === 'checkpoint' && (
+        <div className="grid-cols-3" style={{ gap: '2rem' }}>
+
+          {/* ── SINGLE AREA REGISTRATION FORM ── */}
+          <div className="glass-panel panel-body" style={{ height: 'fit-content' }}>
+            <h3 className="section-title">
+              <Plus size={18} className="text-primary" style={{ flexShrink: 0 }} />
+              <span>Registrasi Area Baru</span>
+            </h3>
+
+            <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+
+              <div className="form-field">
+                <label className="form-label">LOKASI / GEDUNG</label>
+                <div className="form-input-wrap" style={{ opacity: 0.6 }}>
+                  <Building size={16} />
+                  <input type="text" value="SMPJDC - Jakarta Design Center" disabled className="form-input" />
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <div className="form-field">
+                  <label className="form-label">LANTAI</label>
+                  <select value={floor} onChange={e => setFloor(e.target.value)} className="form-select">
+                    {FLOOR_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                    <option value="__LAINNYA__">Lainnya...</option>
+                  </select>
+                  {floor === '__LAINNYA__' && (
+                    <input type="text" value={floorCustom} onChange={e => setFloorCustom(e.target.value)} placeholder="Tulis lantai manual" className="form-input form-input-sm" />
+                  )}
+                </div>
+                <div className="form-field">
+                  <label className="form-label">NOMOR TITIK</label>
+                  <input type="text" value={nomorTitik} onChange={e => setNomorTitik(e.target.value)} placeholder="Cth: 1, 2, 3 atau ID" className="form-input" />
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <div className="form-field">
+                  <label className="form-label">ZONA</label>
+                  <select value={zone} onChange={e => setZone(e.target.value)} className="form-select">
+                    {ZONE_OPTIONS.map(z => <option key={z} value={z}>{z}</option>)}
+                    <option value="__LAINNYA__">Lainnya...</option>
+                  </select>
+                  {zone === '__LAINNYA__' && (
+                    <input type="text" value={zoneCustom} onChange={e => setZoneCustom(e.target.value)} placeholder="Tulis zona manual" className="form-input form-input-sm" />
+                  )}
+                </div>
+                <div className="form-field">
+                  <label className="form-label">LOKASI / TITIK PATROLI</label>
+                  <input type="text" value={titik} onChange={e => setTitik(e.target.value)} placeholder="Contoh: Lobby Utama, Lift A Lt 1" className="form-input" required />
+                </div>
+              </div>
+
+              {(titik || nomorTitik) && (
+                <div className="glass-panel" style={{ padding: '0.75rem', background: 'rgba(59,130,246,0.02)', fontSize: '0.75rem', borderStyle: 'dashed' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <div className="preview-row"><span className="preview-label">Lokasi:</span><span className="preview-value">SMPJDC - Jakarta Design Center</span></div>
+                    <div className="preview-row"><span className="preview-label">Lantai:</span><span className="preview-value">{FLOOR_OPTIONS.find(f => f.value === floor)?.label || floorFinal}</span></div>
+                    <div className="preview-row"><span className="preview-label">No. Titik:</span><span className="preview-value">{nomorTitik || '-'}</span></div>
+                    <div className="preview-row"><span className="preview-label">Zona:</span><span className="preview-value">{zoneFinal}</span></div>
+                    <div className="preview-row"><span className="preview-label">Lokasi:</span><span className="preview-value">{titik || '-'}</span></div>
+                    <div style={{ marginTop: '0.3rem', paddingTop: '0.3rem', borderTop: '1px solid var(--border-glass)' }}>
+                      <span className="preview-label">QR Code:</span>
+                      <p className="preview-qr">{nomorTitik.trim() ? `JDC-${qrLocCode}-${nomorTitik.trim()}` : getQRPattern()}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button type="submit" className="btn-primary btn-full" style={{ minHeight: '48px', touchAction: 'manipulation' }}>
+                <Plus size={16} /> Daftarkan Area
+              </button>
+
+            </form>
+          </div>
+
+          {/* ── MASTER AREA LIST ── */}
+          <div className="glass-panel grid-span-2 panel-body">
+            <div className="flex-between" style={{ marginBottom: '1.25rem', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <h3 className="section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Building size={18} className="text-primary" style={{ flexShrink: 0 }} />
+                <span>Daftar Checkpoint Aktif ({areas.length})</span>
+              </h3>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div style={{ position: 'relative', minWidth: '140px' }}>
+                  <input type="text" value={searchArea} onChange={e => setSearchArea(e.target.value)}
+                    placeholder="Cari lokasi/QR..." className="form-input" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', minHeight: '44px' }} />
+                </div>
+                <button type="button" onClick={handlePrintAllQRs} className="btn-primary"
+                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto', minHeight: '44px', touchAction: 'manipulation' }} data-no-ripple>
+                  <Printer size={14} /> Cetak Semua QR
+                </button>
               </div>
             </div>
 
-            <div className="form-grid">
+            <div className="table-wrap" style={{ overflowX: 'auto' }}>
+              <table className="table-data" style={{ minWidth: '650px' }}>
+                <thead>
+                  <tr>
+                    <th>Lantai</th><th>No. Titik</th><th>Zona</th>
+                    <th>Lokasi</th><th>QR Code</th><th style={{ textAlign: 'right' }}>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAreas.length === 0 ? (
+                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{searchArea ? 'Tidak ditemukan' : 'Belum ada area terdaftar'}</td></tr>
+                  ) : ([...filteredAreas].sort((a, b) => {
+                    const na = parseInt(a.nomorTitik, 10);
+                    const nb = parseInt(b.nomorTitik, 10);
+                    if (isNaN(na) && isNaN(nb)) return a.nomorTitik?.localeCompare(b.nomorTitik || '');
+                    if (isNaN(na)) return 1;
+                    if (isNaN(nb)) return -1;
+                    return na - nb;
+                  }).map((area, idx) => (
+                    <tr key={area.id} className={idx % 2 === 0 ? 'row-even' : ''}>
+                      <td>{['1','2','3','4','5','6'].includes(area.lantai) ? `Lantai ${area.lantai}` : area.lantai}</td>
+                      <td className="td-mono td-label">{area.nomorTitik || '-'}</td>
+                      <td>{area.zona}</td>
+                      <td className="td-primary td-label">{area.titik}</td>
+                      <td className="td-mono" style={{ fontSize: '0.75rem', opacity: 0.8 }}>{area.qrCode}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="btn-group" style={{ justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+                          <button onClick={() => openEditArea(area)} title="Edit area" className="btn-icon-primary" data-no-ripple
+                            style={{ minWidth: '36px', minHeight: '36px', touchAction: 'manipulation' }}>
+                            <Edit3 size={14} />
+                          </button>
+                          <button onClick={() => handleDownloadQR(area)} title="Download Barcode PNG" className="btn-icon-primary" data-no-ripple
+                            style={{ minWidth: '36px', minHeight: '36px', touchAction: 'manipulation' }}>
+                            {downloadingId === area.id ? <RefreshCw size={14} className="spin" /> : <Download size={14} />}
+                          </button>
+                          <button onClick={() => handlePrintQR(area)} title="Cetak Stiker Barcode" className="btn-icon" data-no-ripple
+                            style={{ minWidth: '36px', minHeight: '36px', touchAction: 'manipulation' }}>
+                            {printLoadingId === area.id ? <RefreshCw size={14} className="spin" /> : <Printer size={14} />}
+                          </button>
+                          <button onClick={() => onDeleteArea(area.id)} title="Hapus area" className="btn-icon-danger" data-no-ripple
+                            style={{ minWidth: '36px', minHeight: '36px', touchAction: 'manipulation' }}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ── BULK GENERATOR ── (hidden on this simplified view, moved to a panel) */}
+          <div className="glass-panel panel-body" style={{ height: 'fit-content' }}>
+            <h3 className="section-title">
+              <Layers size={18} className="text-primary" style={{ flexShrink: 0 }} />
+              <span>Generator Barcode Massal</span>
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+              <p className="text-secondary" style={{ fontSize: '0.85rem', lineHeight: '1.4' }}>
+                Generate dan download barcode untuk dicetak sekaligus.
+              </p>
+
+              <div className="form-field">
+                <label className="form-label">JUMLAH BARCODE</label>
+                <select value={bulkCount} onChange={(e) => setBulkCount(parseInt(e.target.value))} className="form-select">
+                  <option value="100">100 Barcode Lokasi</option>
+                  <option value="500">500 Barcode Lokasi</option>
+                  <option value="1000">1000 Barcode Lokasi</option>
+                </select>
+              </div>
+
+              {generating ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div className="flex-between" style={{ fontSize: '0.75rem' }}>
+                    <span>Memproses QR codes...</span>
+                    <span>{genProgress}%</span>
+                  </div>
+                  <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${genProgress}%` }} /></div>
+                </div>
+              ) : bulkDownloadReady ? (
+                <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-success)', fontSize: '0.85rem', fontWeight: 600 }}>
+                    <Check size={18} /> <span>{bulkCount} Barcodes Siap Didownload!</span>
+                  </div>
+                  <button onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=SMPJDC-BULK-${bulkCount}`;
+                    link.download = `smpjdc-${bulkCount}-barcodes.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setBulkDownloadReady(false);
+                  }} className="btn-primary btn-full" style={{ background: 'var(--color-success)', minHeight: '48px', touchAction: 'manipulation' }}>
+                    <Download size={16} /> Download Sample PNG
+                  </button>
+                </div>
+              ) : (
+                <button onClick={handleBulkGenerate} className="btn-secondary btn-full" style={{ minHeight: '48px', touchAction: 'manipulation' }}>
+                  Generate QR Codes
+                </button>
+              )}
+
+              <div className="text-muted" style={{ fontSize: '0.7rem', lineHeight: '1.4' }}>
+                <p>• Output berupa file PNG beresolusi tinggi.</p>
+                <p>• Token dinamis disematkan secara acak guna mencegah duplikasi.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════
+          TAB: POS JAGA
+          ════════════════════════════════════════════════════ */}
+      {tab === 'posjaga' && (
+        <div className="grid-cols-2" style={{ gap: '2rem' }}>
+
+          {/* ── ADD POS FORM ── */}
+          <div className="glass-panel panel-body" style={{ height: 'fit-content' }}>
+            <h3 className="section-title">
+              <Plus size={18} className="text-primary" style={{ flexShrink: 0 }} />
+              <span>Tambah Pos Jaga Baru</span>
+            </h3>
+
+            <form onSubmit={handleAddPos} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+              <div className="form-field">
+                <label className="form-label">NAMA POS / TITIK</label>
+                <input type="text" value={posTitik} onChange={e => setPosTitik(e.target.value)}
+                  placeholder="Contoh: Pos 01 Lobby Utama" className="form-input" required />
+              </div>
+
+              <div className="form-field">
+                <label className="form-label">LANTAI / AREA</label>
+                <select value={posLantai} onChange={e => setPosLantai(e.target.value)} className="form-select">
+                  {FLOOR_OPTIONS_POS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  <option value="__LAINNYA__">Lainnya...</option>
+                </select>
+                {posLantai === '__LAINNYA__' && (
+                  <input type="text" value={posLantaiCustom} onChange={e => setPosLantaiCustom(e.target.value)}
+                    placeholder="Tulis lantai/area manual" className="form-input form-input-sm" />
+                )}
+              </div>
+
+              <div className="form-field">
+                <label className="form-label">KETERANGAN <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(opsional)</span></label>
+                <input type="text" value={posKeterangan} onChange={e => setPosKeterangan(e.target.value)}
+                  placeholder="Deskripsi pos" className="form-input" />
+              </div>
+
+              <div className="form-field">
+                <label className="form-label">KODE POS <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(opsional, cth: P01)</span></label>
+                <input type="text" value={posKode} onChange={e => setPosKode(e.target.value)}
+                  placeholder="Contoh: P01, P23" className="form-input" style={{ textTransform: 'uppercase' }} />
+              </div>
+
+              <button type="submit" className="btn-primary btn-full" style={{ minHeight: '48px', touchAction: 'manipulation' }}>
+                <Plus size={16} /> Tambah Pos Jaga
+              </button>
+            </form>
+          </div>
+
+          {/* ── POS LIST ── */}
+          <div className="glass-panel grid-span-1 panel-body">
+            <div className="flex-between" style={{ marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h3 className="section-title" style={{ margin: 0 }}>
+                <Shield size={18} className="text-primary" style={{ flexShrink: 0 }} />
+                <span>Daftar Pos Jaga ({posList.length})</span>
+              </h3>
+              <div style={{ position: 'relative', minWidth: '140px' }}>
+                <input type="text" value={searchPos} onChange={e => setSearchPos(e.target.value)}
+                  placeholder="Cari pos..." className="form-input" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', minHeight: '44px' }} />
+              </div>
+            </div>
+
+            <div className="table-wrap" style={{ overflowX: 'auto' }}>
+              <table className="table-data" style={{ minWidth: '500px' }}>
+                <thead>
+                  <tr>
+                    <th>Nama Pos</th><th>Lantai</th><th>Keterangan</th><th>Kode</th><th style={{ textAlign: 'right' }}>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPosList.length === 0 ? (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      {searchPos ? 'Tidak ditemukan' : 'Belum ada pos jaga'}
+                    </td></tr>
+                  ) : (filteredPosList.map((pos, idx) => (
+                    <tr key={pos.id} className={idx % 2 === 0 ? 'row-even' : ''}>
+                      <td className="td-primary td-label">{pos.titik}</td>
+                      <td>{pos.lantai}</td>
+                      <td style={{ fontSize: '0.75rem', opacity: 0.8 }}>{pos.keterangan || '-'}</td>
+                      <td className="td-mono">{pos.kode || '-'}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="btn-group" style={{ justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+                          <button onClick={() => openEditPos(pos)} title="Edit pos" className="btn-icon-primary" data-no-ripple
+                            style={{ minWidth: '36px', minHeight: '36px', touchAction: 'manipulation' }}>
+                            <Edit3 size={14} />
+                          </button>
+                          <button onClick={() => onDeletePos(pos.id)} title="Hapus pos" className="btn-icon-danger" data-no-ripple
+                            style={{ minWidth: '36px', minHeight: '36px', touchAction: 'manipulation' }}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════
+          TAB: REGISTRASI ANGGOTA
+          ════════════════════════════════════════════════════ */}
+      {tab === 'users' && (
+        <div className="grid-cols-2" style={{ gap: '2rem' }}>
+          <div className="glass-panel panel-body" style={{ height: 'fit-content' }}>
+            <h3 className="section-title">
+              <User size={18} className="text-primary" style={{ flexShrink: 0 }} />
+              <span>Registrasi Anggota & Role</span>
+            </h3>
+
+            <form onSubmit={handleUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+              <div className="form-field">
+                <label className="form-label">NAMA LENGKAP</label>
+                <input type="text" value={userName} onChange={e => setUserName(e.target.value)} placeholder="Contoh: Richard Meha" className="form-input" required />
+              </div>
+
+              <div className="form-grid">
+                <div className="form-field">
+                  <label className="form-label">NRP / ID</label>
+                  <div className="input-btn-group">
+                    <input type="text" value={userNrp} onChange={e => setUserNrp(e.target.value)} placeholder="20005" className="form-input" required />
+                    <button type="button" onClick={() => {
+                      const existing = users.map(u => parseInt(u.nrp, 10)).filter(n => !isNaN(n));
+                      const next = existing.length > 0 ? Math.max(...existing) + 1 : 10001;
+                      setUserNrp(String(next).padStart(5, '0'));
+                    }} title="Generate NRP" className="btn-gen">
+                      <RefreshCw size={14} /> Generate
+                    </button>
+                  </div>
+                </div>
+                <div className="form-field">
+                  <label className="form-label">JABATAN / ROLE</label>
+                  <select value={userRole} onChange={e => setUserRole(e.target.value)} className="form-select">
+                    <option value="Admin Super">Admin Super</option>
+                    <option value="Manajemen">Manajemen</option>
+                    <option value="SPV">SPV</option>
+                    <option value="Danru">Danru</option>
+                    <option value="Wadanru">Wadanru</option>
+                    <option value="Anggota">Anggota</option>
+                    <option value="BKO">BKO</option>
+                    <option value="KH (Khusus)">KH (Khusus)</option>
+                    <option value="Guest Viewer">Guest Viewer</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <div className="form-field">
+                  <label className="form-label">REGU</label>
+                  <select value={userRegu} onChange={e => setUserRegu(e.target.value)} className="form-select">
+                    {REGU_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label className="form-label">SHIFT</label>
+                  <select value={userShift} onChange={e => setUserShift(e.target.value)} className="form-select">
+                    {SHIFT_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <div className="form-field">
+                  <label className="form-label"><Phone size={11} style={{ marginRight: '2px' }} /> NOMOR HP</label>
+                  <input type="text" value={userHp} onChange={e => setUserHp(e.target.value)} placeholder="0812xxxx" className="form-input" />
+                </div>
+                <div className="form-field">
+                  <label className="form-label"><Hash size={11} style={{ marginRight: '2px' }} /> PIN LOGIN</label>
+                  <input type="text" value={userPin} onChange={e => setUserPin(e.target.value)} placeholder="Default: 4 digit NRP" maxLength={12} className="form-input" />
+                </div>
+              </div>
+
+              <button type="submit" className="btn-primary btn-full" style={{ minHeight: '48px', touchAction: 'manipulation' }}>
+                <UserCheck size={16} /> Tambahkan Anggota
+              </button>
+            </form>
+          </div>
+
+          <div className="glass-panel panel-body" style={{ height: 'fit-content' }}>
+            <h3 className="section-title" style={{ marginBottom: '1rem' }}>
+              <User size={18} className="text-primary" />
+              <span>Anggota Terdaftar ({users.length})</span>
+            </h3>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              Kelola anggota di menu <strong>Management User</strong>.
+            </p>
+            <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              {[...users].sort((a, b) => a.nama?.localeCompare(b.nama)).map(u => (
+                <div key={u.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  padding: '0.4rem 0.6rem', borderRadius: '6px',
+                  background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-glass)'
+                }}>
+                  <img src={u.avatar} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40&fit=crop'; }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>{u.nama}</div>
+                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{u.jabatan} • {u.nrp}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════
+          EDIT AREA MODAL
+          ════════════════════════════════════════════════════ */}
+      {editArea && (
+        <div className="modal-overlay" onClick={() => setEditArea(null)}>
+          <div className="glass-panel modal-content" onClick={e => e.stopPropagation()} style={{
+            maxWidth: '500px', width: '95%', padding: '1.5rem', position: 'relative'
+          }}>
+            <button onClick={() => setEditArea(null)} style={{
+              position: 'absolute', top: '0.75rem', right: '0.75rem', background: 'none', border: 'none',
+              color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.25rem',
+              minWidth: '44px', minHeight: '44px', touchAction: 'manipulation'
+            }}><X size={18} /></button>
+
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Edit3 size={16} className="text-primary" /> Edit Checkpoint
+            </h3>
+
+            <form onSubmit={handleEditAreaSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="form-field">
                 <label className="form-label">LANTAI</label>
-                <select value={floor} onChange={e => setFloor(e.target.value)} className="form-select">
+                <select value={eFloor} onChange={e => setEFloor(e.target.value)} className="form-select">
                   {FLOOR_OPTIONS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                   <option value="__LAINNYA__">Lainnya...</option>
                 </select>
-                {floor === '__LAINNYA__' && (
-                  <input type="text" value={floorCustom} onChange={e => setFloorCustom(e.target.value)} placeholder="Tulis lantai manual" className="form-input form-input-sm" />
+                {eFloor === '__LAINNYA__' && (
+                  <input type="text" value={eFloorCustom} onChange={e => setEFloorCustom(e.target.value)}
+                    placeholder="Tulis lantai manual" className="form-input form-input-sm" />
                 )}
               </div>
-              <div className="form-field">
-                <label className="form-label">NOMOR TITIK</label>
-                <input type="text" value={nomorTitik} onChange={e => setNomorTitik(e.target.value)} placeholder="Cth: 1, 2, 3 atau ID" className="form-input" />
-              </div>
-            </div>
 
-            <div className="form-grid">
-              <div className="form-field">
-                <label className="form-label">ZONA</label>
-                <select value={zone} onChange={e => setZone(e.target.value)} className="form-select">
-                  {ZONE_OPTIONS.map(z => <option key={z} value={z}>{z}</option>)}
-                  <option value="__LAINNYA__">Lainnya...</option>
-                </select>
-                {zone === '__LAINNYA__' && (
-                  <input type="text" value={zoneCustom} onChange={e => setZoneCustom(e.target.value)} placeholder="Tulis zona manual" className="form-input form-input-sm" />
-                )}
+              <div className="form-grid">
+                <div className="form-field">
+                  <label className="form-label">NOMOR TITIK</label>
+                  <input type="text" value={eNomorTitik} onChange={e => setENomorTitik(e.target.value)} className="form-input" />
+                </div>
+                <div className="form-field">
+                  <label className="form-label">ZONA</label>
+                  <select value={eZone} onChange={e => setEZone(e.target.value)} className="form-select">
+                    {ZONE_OPTIONS.map(z => <option key={z} value={z}>{z}</option>)}
+                    <option value="__LAINNYA__">Lainnya...</option>
+                  </select>
+                  {eZone === '__LAINNYA__' && (
+                    <input type="text" value={eZoneCustom} onChange={e => setEZoneCustom(e.target.value)}
+                      placeholder="Tulis zona manual" className="form-input form-input-sm" />
+                  )}
+                </div>
               </div>
+
               <div className="form-field">
                 <label className="form-label">LOKASI / TITIK PATROLI</label>
-                <input type="text" value={titik} onChange={e => setTitik(e.target.value)} placeholder="Contoh: Lobby Utama, Lift A Lt 1" className="form-input" required />
+                <input type="text" value={eTitik} onChange={e => setETitik(e.target.value)} className="form-input" required />
               </div>
-            </div>
 
-            {(titik || nomorTitik) && (
-              <div className="glass-panel" style={{ padding: '0.75rem', background: 'rgba(59,130,246,0.02)', fontSize: '0.75rem', borderStyle: 'dashed' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  <div className="preview-row"><span className="preview-label">Lokasi:</span><span className="preview-value">SMPJDC - Jakarta Design Center</span></div>
-                  <div className="preview-row"><span className="preview-label">Lantai:</span><span className="preview-value">{FLOOR_OPTIONS.find(f => f.value === floor)?.label || floorFinal}</span></div>
-                  <div className="preview-row"><span className="preview-label">No. Titik:</span><span className="preview-value">{nomorTitik || '-'}</span></div>
-                  <div className="preview-row"><span className="preview-label">Zona:</span><span className="preview-value">{zoneFinal}</span></div>
-                  <div className="preview-row"><span className="preview-label">Lokasi:</span><span className="preview-value">{titik || '-'}</span></div>
-                  <div style={{ marginTop: '0.3rem', paddingTop: '0.3rem', borderTop: '1px solid var(--border-glass)' }}>
-                    <span className="preview-label">QR Code:</span>
-                    <p className="preview-qr">{nomorTitik.trim() ? `JDC-${qrLocCode}-${nomorTitik.trim()}` : getQRPattern()}</p>
-                  </div>
-                </div>
+              <div className="form-field">
+                <label className="form-label">QR CODE</label>
+                <input type="text" value={eQrCode} onChange={e => setEQrCode(e.target.value)} className="form-input form-input-sm"
+                  style={{ fontFamily: 'monospace', fontSize: '0.8rem', opacity: 0.7 }} />
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>* Akan digenerate otomatis jika nomor titik diisi</span>
               </div>
-            )}
 
-            <button type="submit" className="btn-primary btn-full">
-              <Plus size={16} /> Daftarkan Area
-            </button>
-
-          </form>
-        </div>
-
-        {/* 2. BULK BARCODE GENERATOR PANEL */}
-        <div className="glass-panel panel-body" style={{ height: 'fit-content' }}>
-          <h3 className="section-title">
-            <Layers size={18} className="text-primary" style={{ flexShrink: 0 }} />
-            <span>Generator Barcode Massal</span>
-          </h3>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-            <p className="text-secondary" style={{ fontSize: '0.85rem', lineHeight: '1.4' }}>
-              Untuk peluncuran area baru SMPJDC secara masif, generate barcode dan download dalam bentuk ZIP untuk dicetak sekaligus.
-            </p>
-
-            <div className="form-field">
-              <label className="form-label">JUMLAH BARCODE</label>
-              <select value={bulkCount} onChange={(e) => setBulkCount(parseInt(e.target.value))} className="form-select">
-                <option value="100">100 Barcode Lokasi</option>
-                <option value="500">500 Barcode Lokasi</option>
-                <option value="1000">1000 Barcode Lokasi</option>
-              </select>
-            </div>
-
-            {generating ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div className="flex-between" style={{ fontSize: '0.75rem' }}>
-                  <span>Memproses QR codes...</span>
-                  <span>{genProgress}%</span>
-                </div>
-                <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${genProgress}%` }} /></div>
-              </div>
-            ) : bulkDownloadReady ? (
-              <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-success)', fontSize: '0.85rem', fontWeight: 600 }}>
-                  <Check size={18} /> <span>{bulkCount} Barcodes Siap Didownload!</span>
-                </div>
-                <button onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=SMPJDC-BULK-${bulkCount}`;
-                  link.download = `smpjdc-${bulkCount}-barcodes.png`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                  setBulkDownloadReady(false);
-                }} className="btn-primary btn-full" style={{ background: 'var(--color-success)' }}>
-                  <Download size={16} /> Download Sample PNG
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button type="submit" className="btn-primary" style={{ flex: 1, padding: '0.6rem', minHeight: '48px', touchAction: 'manipulation' }}>
+                  <Check size={16} /> Simpan Perubahan
+                </button>
+                <button type="button" onClick={() => setEditArea(null)} className="btn-secondary" style={{ flex: 1, padding: '0.6rem', minHeight: '48px', touchAction: 'manipulation' }}>
+                  Batal
                 </button>
               </div>
-            ) : (
-              <button onClick={handleBulkGenerate} className="btn-secondary btn-full">Generate QR Codes</button>
-            )}
-
-            <div className="text-muted" style={{ fontSize: '0.7rem', lineHeight: '1.4' }}>
-              <p>• Output berupa file PNG beresolusi tinggi.</p>
-              <p>• Token dinamis disematkan secara acak guna mencegah duplikasi.</p>
-            </div>
+            </form>
           </div>
         </div>
+      )}
 
-        {/* 3. USER & ROLE REGISTRATION FORM */}
-        <div className="glass-panel panel-body" style={{ height: 'fit-content' }}>
-          <h3 className="section-title">
-            <User size={18} className="text-primary" style={{ flexShrink: 0 }} />
-            <span>Registrasi Anggota & Role</span>
-          </h3>
+      {/* ════════════════════════════════════════════════════
+          EDIT POS MODAL
+          ════════════════════════════════════════════════════ */}
+      {editPos && (
+        <div className="modal-overlay" onClick={() => setEditPos(null)}>
+          <div className="glass-panel modal-content" onClick={e => e.stopPropagation()} style={{
+            maxWidth: '500px', width: '95%', padding: '1.5rem', position: 'relative'
+          }}>
+            <button onClick={() => setEditPos(null)} style={{
+              position: 'absolute', top: '0.75rem', right: '0.75rem', background: 'none', border: 'none',
+              color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.25rem',
+              minWidth: '44px', minHeight: '44px', touchAction: 'manipulation'
+            }}><X size={18} /></button>
 
-          <form onSubmit={handleUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-            <div className="form-field">
-              <label className="form-label">NAMA LENGKAP</label>
-              <input type="text" value={userName} onChange={e => setUserName(e.target.value)} placeholder="Contoh: Richard Meha" className="form-input" required />
-            </div>
-
-            <div className="form-grid">
-              <div className="form-field">
-                <label className="form-label">NRP / ID</label>
-                <div className="input-btn-group">
-                  <input type="text" value={userNrp} onChange={e => setUserNrp(e.target.value)} placeholder="20005" className="form-input" required />
-                  <button type="button" onClick={() => {
-                    const existing = users.map(u => parseInt(u.nrp, 10)).filter(n => !isNaN(n));
-                    const next = existing.length > 0 ? Math.max(...existing) + 1 : 10001;
-                    setUserNrp(String(next).padStart(5, '0'));
-                  }} title="Generate NRP" className="btn-gen">
-                    <RefreshCw size={14} /> Generate
-                  </button>
-                </div>
-              </div>
-              <div className="form-field">
-                <label className="form-label">JABATAN / ROLE</label>
-                <select value={userRole} onChange={e => setUserRole(e.target.value)} className="form-select">
-                  <option value="Admin Super">Admin Super</option>
-                  <option value="Manajemen">Manajemen</option>
-                  <option value="SPV">SPV</option>
-                  <option value="Danru">Danru</option>
-                  <option value="Wadanru">Wadanru</option>
-                  <option value="Anggota">Anggota</option>
-                  <option value="Guest Viewer">Guest Viewer</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-grid">
-              <div className="form-field">
-                <label className="form-label">REGU</label>
-                <select value={userRegu} onChange={e => setUserRegu(e.target.value)} className="form-select">
-                  {REGU_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-              <div className="form-field">
-                <label className="form-label">SHIFT</label>
-                <select value={userShift} onChange={e => setUserShift(e.target.value)} className="form-select">
-                  {SHIFT_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className="form-grid">
-              <div className="form-field">
-                <label className="form-label"><Phone size={11} style={{ marginRight: '2px' }} /> NOMOR HP</label>
-                <input type="text" value={userHp} onChange={e => setUserHp(e.target.value)} placeholder="0812xxxx" className="form-input" />
-              </div>
-              <div className="form-field">
-                <label className="form-label"><Hash size={11} style={{ marginRight: '2px' }} /> PIN LOGIN</label>
-                <input type="text" value={userPin} onChange={e => setUserPin(e.target.value)} placeholder="Default: 4 digit NRP" maxLength={12} className="form-input" />
-              </div>
-            </div>
-
-            <div className="form-field">
-              <label className="form-label">AVATAR URL (OPSIONAL)</label>
-              <input type="text" value={userAvatar} onChange={e => setUserAvatar(e.target.value)} placeholder="https://images.unsplash.com/..." className="form-input" />
-            </div>
-
-            <button type="submit" className="btn-primary btn-full">
-              <UserCheck size={16} /> Tambahkan Anggota
-            </button>
-          </form>
-        </div>
-
-        {/* 3. MASTER AREA LIST VIEW */}
-        <div className="glass-panel grid-span-3 panel-body">
-          <div className="flex-between" style={{ marginBottom: '1.25rem', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <h3 className="section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Building size={18} className="text-primary" style={{ flexShrink: 0 }} />
-              <span>Daftar Master Area Aktif SMPJDC ({areas.length})</span>
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Edit3 size={16} className="text-primary" /> Edit Pos Jaga
             </h3>
-            <button type="button" onClick={handlePrintAllQRs} className="btn-primary" style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto' }} data-no-ripple>
-              <Printer size={14} /> Cetak Semua Barcode QR
-            </button>
-          </div>
 
-          <div className="table-wrap">
-            <table className="table-data">
-              <thead>
-                <tr>
-                  <th>Lantai</th><th>No. Titik</th><th>Zona</th>
-                  <th>Lokasi</th><th>QR Code</th><th style={{ textAlign: 'right' }}>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...areas].sort((a, b) => {
-                  const na = parseInt(a.nomorTitik, 10);
-                  const nb = parseInt(b.nomorTitik, 10);
-                  if (isNaN(na) && isNaN(nb)) return a.nomorTitik?.localeCompare(b.nomorTitik || '');
-                  if (isNaN(na)) return 1;
-                  if (isNaN(nb)) return -1;
-                  return na - nb;
-                }).map((area, idx) => (
-                  <tr key={area.id} className={idx % 2 === 0 ? 'row-even' : ''}>
-                    <td>{['1','2','3','4','5','6'].includes(area.lantai) ? `Lantai ${area.lantai}` : area.lantai}</td>
-                    <td className="td-mono td-label">{area.nomorTitik || '-'}</td>
-                    <td>{area.zona}</td>
-                    <td className="td-primary td-label">{area.titik}</td>
-                    <td className="td-mono" style={{ fontSize: '0.75rem', opacity: 0.8 }}>{area.qrCode}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="btn-group" style={{ justifyContent: 'flex-end' }}>
-                        <button onClick={() => handleDownloadQR(area)} title="Download Barcode PNG" className="btn-icon-primary" data-no-ripple>{downloadingId === area.id ? <RefreshCw size={14} className="spin" /> : <Download size={14} />}</button>
-                        <button onClick={() => handlePrintQR(area)} title="Cetak Stiker Barcode" className="btn-icon" data-no-ripple>{printLoadingId === area.id ? <RefreshCw size={14} className="spin" /> : <Printer size={14} />}</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <form onSubmit={handleEditPosSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="form-field">
+                <label className="form-label">NAMA POS / TITIK</label>
+                <input type="text" value={ePosTitik} onChange={e => setEPosTitik(e.target.value)} className="form-input" required />
+              </div>
+
+              <div className="form-field">
+                <label className="form-label">LANTAI / AREA</label>
+                <select value={ePosLantai} onChange={e => setEPosLantai(e.target.value)} className="form-select">
+                  {FLOOR_OPTIONS_POS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  <option value="__LAINNYA__">Lainnya...</option>
+                </select>
+                {ePosLantai === '__LAINNYA__' && (
+                  <input type="text" value={ePosLantaiCustom} onChange={e => setEPosLantaiCustom(e.target.value)}
+                    placeholder="Tulis lantai manual" className="form-input form-input-sm" />
+                )}
+              </div>
+
+              <div className="form-field">
+                <label className="form-label">KETERANGAN</label>
+                <input type="text" value={ePosKeterangan} onChange={e => setEPosKeterangan(e.target.value)} className="form-input" />
+              </div>
+
+              <div className="form-field">
+                <label className="form-label">KODE POS</label>
+                <input type="text" value={ePosKode} onChange={e => setEPosKode(e.target.value)} className="form-input form-input-sm" style={{ textTransform: 'uppercase' }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button type="submit" className="btn-primary" style={{ flex: 1, padding: '0.6rem', minHeight: '48px', touchAction: 'manipulation' }}>
+                  <Check size={16} /> Simpan Perubahan
+                </button>
+                <button type="button" onClick={() => setEditPos(null)} className="btn-secondary" style={{ flex: 1, padding: '0.6rem', minHeight: '48px', touchAction: 'manipulation' }}>
+                  Batal
+                </button>
+              </div>
+            </form>
           </div>
         </div>
+      )}
 
-      </div>
+      {/* Hidden Canvas for QR Rendering */}
+      <canvas ref={canvasRef} width="250" height="290" style={{ display: 'none' }} />
 
     </div>
   );

@@ -12,9 +12,11 @@ const KATEGORI_MUTASI = [
   { id: '__lainnya__', label: 'Lainnya...', icon: X, color: '#6b7280' }
 ];
 
-export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteLog, areas }) {
+export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteLog, areas, posList = [] }) {
   const [jamKejadian, setJamKejadian] = useState(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
   const [lokasi, setLokasi] = useState('');
+  const [lokasiCustom, setLokasiCustom] = useState('');
+  const [isCustomLokasi, setIsCustomLokasi] = useState(false);
   const [uraian, setUraian] = useState('');
   const [kategori, setKategori] = useState('informasi');
   const [kategoriLainnya, setKategoriLainnya] = useState('');
@@ -54,6 +56,8 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
     });
     setUraian('');
     setLokasi('');
+    setLokasiCustom('');
+    setIsCustomLokasi(false);
     setKategori('informasi');
     setKategoriLainnya('');
     setFoto(null);
@@ -85,10 +89,32 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
             
             <div className="step-field">
               <label><MapPin size={12} /> PLOTTING POS / LOKASI</label>
-              <select value={lokasi} onChange={e => setLokasi(e.target.value)} className="modern-select" required>
-                <option value="">-- Pilih Pos Jaga --</option>
-                {areas.map(a => <option key={a.id} value={a.titik}>{a.titik} ({['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'].includes(a.lantai)?`Lt ${a.lantai}`:a.lantai})</option>)}
-              </select>
+              {!isCustomLokasi ? (
+                <select value={lokasi} onChange={e => {
+                  const val = e.target.value;
+                  if (val === '__custom__') {
+                    setIsCustomLokasi(true);
+                    setLokasi('');
+                  } else {
+                    setLokasi(val);
+                  }
+                }} className="modern-select" required>
+                  <option value="">-- Pilih Pos Jaga --</option>
+                  {posList.map(p => <option key={p.id} value={p.titik}>{p.titik}</option>)}
+                  <option value="__custom__">-- Lainnya (Ketik Manual) --</option>
+                </select>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  <input type="text" value={lokasiCustom} onChange={e => {
+                    setLokasiCustom(e.target.value);
+                    setLokasi(e.target.value);
+                  }} placeholder="Ketik lokasi manual..." className="modern-input" style={{ fontSize: '0.82rem' }} required />
+                  <button type="button" onClick={() => { setIsCustomLokasi(false); setLokasiCustom(''); setLokasi(''); }}
+                    style={{ alignSelf: 'flex-start', fontSize: '0.72rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0', textDecoration: 'underline', minHeight: '36px', touchAction: 'manipulation' }}>
+                    ← Kembali ke pilihan pos
+                  </button>
+                </div>
+              )}
             </div>
             
             <div className="step-field">

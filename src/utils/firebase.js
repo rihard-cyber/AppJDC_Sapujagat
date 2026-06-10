@@ -12,7 +12,9 @@ import {
   orderBy,
   limit,
   serverTimestamp,
-  getDocs
+  getDocs,
+  getDoc,
+  setDoc
 } from 'firebase/firestore';
 import firebaseConfig, { isFirebaseConfigured } from './firebaseConfig';
 
@@ -225,6 +227,54 @@ export const clearAllPatrolDataInFirestore = async () => {
     console.warn('[Firebase] Gagal membersihkan data:', e);
     return false;
   }
+};
+
+// ─── Roster (per-month document upsert) ───
+export const saveRosterToFirestore = async (yearMonth, rosterData, userId) => {
+  const database = initFirebase();
+  if (!database) return false;
+  try {
+    const ref = doc(database, 'rosters', yearMonth);
+    await setDoc(ref, {
+      rosterData,
+      yearMonth,
+      updatedAt: new Date().toISOString(),
+      updatedBy: userId || 'unknown'
+    }, { merge: true });
+    return true;
+  } catch (e) {
+    console.warn('[Firebase] Gagal simpan roster:', e);
+    return false;
+  }
+};
+
+export const loadRosterFromFirestore = async (yearMonth) => {
+  const database = initFirebase();
+  if (!database) return null;
+  try {
+    const ref = doc(database, 'rosters', yearMonth);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      return snap.data().rosterData || {};
+    }
+    return null;
+  } catch (e) {
+    console.warn('[Firebase] Gagal baca roster:', e);
+    return null;
+  }
+};
+
+export const subscribeRoster = (yearMonth, callback) => {
+  const database = initFirebase();
+  if (!database) { callback(null); return () => {}; }
+  const ref = doc(database, 'rosters', yearMonth);
+  return onSnapshot(ref, (snap) => {
+    if (snap.exists()) callback(snap.data().rosterData || {});
+    else callback(null);
+  }, (error) => {
+    console.warn(`[Firebase] Gagal subscribe roster ${yearMonth}:`, error);
+    callback(null);
+  });
 };
 
 export const deleteOldDataInFirestore = async (olderThanDays = 90) => {

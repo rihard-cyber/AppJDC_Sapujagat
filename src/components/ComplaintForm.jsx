@@ -35,6 +35,7 @@ export default function ComplaintForm({ onAddComplaint }) {
   const [floor, setFloor] = useState('');
   const [tenant, setTenant] = useState('');
   const [category, setCategory] = useState('');
+  const [categoryCustom, setCategoryCustom] = useState('');
   const [description, setDescription] = useState('');
   const [photos, setPhotos] = useState([]);
   const [errors, setErrors] = useState({});
@@ -100,12 +101,14 @@ export default function ComplaintForm({ onAddComplaint }) {
     if (!floor) errs.floor = 'Pilih lantai';
     if (!tenant.trim()) errs.tenant = 'Nama tenant / unit wajib diisi';
     if (!category) errs.category = 'Pilih kategori komplain';
+    if (category === 'Lainnya' && !categoryCustom.trim()) errs.category = 'Tulis kategori komplain';
     if (!description.trim()) errs.description = 'Deskripsi komplain wajib diisi';
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
 
     const count = JSON.parse(localStorage.getItem('smpjdc_complaints') || '[]').length + 1;
     const id = `CMP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(count).padStart(3, '0')}`;
+    const finalCategory = category === 'Lainnya' && categoryCustom.trim() ? categoryCustom.trim() : category;
     const complaint = {
       id: `cmp-${Date.now()}`,
       ticketId: id,
@@ -113,7 +116,7 @@ export default function ComplaintForm({ onAddComplaint }) {
       phone: phone.trim(),
       floor,
       tenant: tenant.trim(),
-      category,
+      category: finalCategory,
       description: description.trim(),
       photos,
       status: 'Baru',
@@ -209,7 +212,7 @@ export default function ComplaintForm({ onAddComplaint }) {
             Simpan nomor tiket untuk melacak status komplain Anda.
           </p>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={() => { setStep('form'); setSubmitted(false); setName(''); setPhone(''); setFloor(''); setTenant(''); setCategory(''); setDescription(''); setPhotos([]); setErrors({}); }} className="btn-primary" style={{ flex: 1, padding: '0.65rem', fontSize: '0.8rem' }}>
+            <button onClick={() => { setStep('form'); setSubmitted(false); setName(''); setPhone(''); setFloor(''); setTenant(''); setCategory(''); setCategoryCustom(''); setDescription(''); setPhotos([]); setErrors({}); }} className="btn-primary" style={{ flex: 1, padding: '0.65rem', fontSize: '0.8rem', minHeight: '44px', touchAction: 'manipulation' }}>
               Buat Komplain Baru
             </button>
             <button onClick={() => { setStep('form'); setSubmitted(false); setTrackMode(true); }} className="btn-secondary" style={{ flex: 1, padding: '0.65rem', fontSize: '0.8rem' }}>
@@ -389,15 +392,19 @@ export default function ComplaintForm({ onAddComplaint }) {
             <label>KATEGORI KOMPLAIN <span style={{ color: 'var(--color-danger)' }}>*</span></label>
             <div className="complaint-cat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem' }}>
               {CATEGORIES.map(c => (
-                <button key={c.id} type="button" onClick={() => { setCategory(c.id); setErrors(p => ({ ...p, category: '' })); }} style={{
-                  padding: '0.5rem 0.4rem', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 700,
+                <button key={c.id} type="button" onClick={() => { setCategory(c.id); setCategoryCustom(''); setErrors(p => ({ ...p, category: '' })); }} style={{
+                  padding: '0.5rem 0.4rem', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 700, minHeight: '44px',
                   border: `1.5px solid ${category === c.id ? c.color : 'var(--border-glass)'}`,
                   background: category === c.id ? `${c.color}18` : 'transparent',
                   color: category === c.id ? c.color : 'var(--text-secondary)',
-                  cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all 0.2s'
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all 0.2s', touchAction: 'manipulation'
                 }}>{c.label}</button>
               ))}
             </div>
+            {category === 'Lainnya' && (
+              <input type="text" value={categoryCustom} onChange={e => setCategoryCustom(e.target.value)}
+                placeholder="Ketik kategori lain..." className="modern-input" style={{ marginTop: '0.3rem', fontSize: '0.8rem' }} />
+            )}
             {errors.category && <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)' }}>{errors.category}</span>}
           </div>
 

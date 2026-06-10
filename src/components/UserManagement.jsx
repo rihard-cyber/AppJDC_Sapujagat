@@ -3,7 +3,7 @@ import { UserPlus, User, Shield, Smartphone, Hash, Users, Search, ChevronDown, C
 import { getWAContacts, saveWAContacts } from '../data/waContacts';
 
 const ROLE_OPTIONS = [
-  'Admin Super', 'Manajemen', 'SPV', 'Danru', 'Wadanru', 'Anggota', 'Guest Viewer'
+  'Admin Super', 'Manajemen', 'SPV', 'Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)', 'Guest Viewer'
 ];
 
 const REGU_PRESETS = ['Regu A', 'Regu B', 'Regu C', 'Regu D'];
@@ -15,6 +15,8 @@ const ROLE_COLORS = {
   'Danru': '#06b6d4',
   'Wadanru': '#14b8a6',
   'Anggota': '#10b981',
+  'BKO': '#f97316',
+  'KH (Khusus)': '#a855f7',
   'Guest Viewer': '#8b5cf6'
 };
 
@@ -33,7 +35,9 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
 
   const allowedRoles = currentUser?.jabatan === 'Admin Super'
     ? ROLE_OPTIONS
-    : ROLE_OPTIONS.filter(r => r !== 'Admin Super');
+    : ['Danru', 'Wadanru'].includes(currentUser?.jabatan || '')
+      ? ['Anggota', 'BKO', 'KH (Khusus)']
+      : ROLE_OPTIONS.filter(r => r !== 'Admin Super');
 
   const updateWAField = (dept, field, value) => {
     setWaContacts(prev => ({
@@ -99,10 +103,17 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
   );
 
   const HIERARCHY_LABELS = { 'Admin Super': 'Admin', 'Manajemen': 'Manajemen', 'SPV': 'SPV' };
-  const HIERARCHY_ORDER = ['Admin', 'Manajemen', 'SPV', 'Regu A', 'Regu B', 'Regu C', 'Regu D'];
+  const HIERARCHY_ORDER = ['Admin', 'Manajemen', 'SPV', 'BKO', 'KH (Khusus)', 'Regu A', 'Regu B', 'Regu C', 'Regu D'];
 
   const groupedByHierarchy = {};
   filteredUsers.forEach(u => {
+    // Jika role BKO atau KH, grup berdasarkan role-nya sendiri, bukan regu
+    if (u.jabatan === 'BKO' || u.jabatan === 'KH (Khusus)') {
+      const g = u.jabatan;
+      if (!groupedByHierarchy[g]) groupedByHierarchy[g] = [];
+      groupedByHierarchy[g].push(u);
+      return;
+    }
     let g = HIERARCHY_LABELS[u.jabatan];
     if (!g) {
       const raw = u.regu || '';
@@ -407,25 +418,28 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
                   
                   {editingUser !== u.id && (
                     <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
-                      <button 
-                        onClick={() => { 
-                          console.log("Editing user:", u.id, u.jabatan, u.regu);
-                          setEditingUser(u.id); 
-                          setEditRole(u.jabatan); 
-                          setEditRegu(u.regu || '-'); 
-                        }} 
-                        className="user-action-btn edit" 
-                        title="Ubah role/regu"
-                      >
-                        <Edit3 size={16}/>
-                      </button>
-                      <button 
-                        onClick={() => onDeleteUser && onDeleteUser(u.id)} 
-                        className="user-action-btn delete" 
-                        title="Hapus user"
-                      >
-                        <Trash2 size={16}/>
-                      </button>
+                      {allowedRoles.includes(u.jabatan) && (
+                        <button 
+                          onClick={() => { 
+                            setEditingUser(u.id); 
+                            setEditRole(u.jabatan); 
+                            setEditRegu(u.regu || '-'); 
+                          }} 
+                          className="user-action-btn edit" 
+                          title="Ubah role/regu"
+                        >
+                          <Edit3 size={16}/>
+                        </button>
+                      )}
+                      {allowedRoles.includes(u.jabatan) && (
+                        <button 
+                          onClick={() => onDeleteUser && onDeleteUser(u.id)} 
+                          className="user-action-btn delete" 
+                          title="Hapus user"
+                        >
+                          <Trash2 size={16}/>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
