@@ -857,6 +857,18 @@ export default function App() {
       });
       if (firstSync) {
         firstSync = false;
+        const fbIds = new Set(firebaseData.map(u => u.id));
+        const fbNrps = new Set(firebaseData.map(u => u.nrp));
+        // Upload local-only users to Firestore
+        setUsers(prev => {
+          const missing = prev.filter(u => !u.firebaseId && !fbIds.has(u.id) && !fbNrps.has(u.nrp));
+          missing.forEach(u => {
+            addUserToFirestore({ ...u, pin: undefined }).then(fid => {
+              if (fid) setUsers(p => p.map(x => x.id === u.id ? { ...x, firebaseId: fid } : x));
+            });
+          });
+          return prev;
+        });
         setFirebaseUsersLoaded(true);
       }
     }, { limit: 200 });
