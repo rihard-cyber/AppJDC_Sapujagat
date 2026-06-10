@@ -105,25 +105,18 @@ const INITIAL_AREAS = [
 const INITIAL_REPORTS = [];
 const INITIAL_FINDINGS = [];
 
+// ── SUPERADMIN FALLBACK ────────────────────────────────────────────────────────
+// Hanya digunakan jika localStorage DAN Firebase sama-sama kosong (instalasi baru)
+// BUKAN data default yang dimunculkan ke semua browser
 const BASE_USERS = [
-  { id: 1, nrp: '10001', nama: 'Richard', jabatan: 'Admin Super', regu: '' },
-  { id: 2, nrp: '10002', nama: 'Pak Kusnan', jabatan: 'Manajemen', regu: '' },
-  { id: 3, nrp: '10003', nama: 'Agus Siraitin', jabatan: 'SPV', regu: '' },
-  { id: 4, nrp: '20001', nama: 'Wahyudi', jabatan: 'Danru', regu: 'Regu A' },
-  { id: 5, nrp: '20002', nama: 'Faizal Tanjung', jabatan: 'Wadanru', regu: 'Regu A' },
-  { id: 6, nrp: '20003', nama: 'Agus Hendraya', jabatan: 'Danru', regu: 'Regu B' },
-  { id: 7, nrp: '20004', nama: 'Suparlan', jabatan: 'Wadanru', regu: 'Regu B' },
-  { id: 8, nrp: '20005', nama: 'Sutrijono', jabatan: 'Danru', regu: 'Regu C' },
-  { id: 9, nrp: '20006', nama: 'Dedy K', jabatan: 'Wadanru', regu: 'Regu C' },
-  { id: 10, nrp: '20007', nama: 'M. Iqbal', jabatan: 'Danru', regu: 'Regu D' },
-  { id: 11, nrp: '20008', nama: 'Dimas Pratama Putra', jabatan: 'Wadanru', regu: 'Regu D' },
-  { id: 12, nrp: '30001', nama: 'Hendra BKO', jabatan: 'BKO', regu: 'Regu A' },
-  { id: 13, nrp: '30002', nama: 'Slamet BKO', jabatan: 'BKO', regu: 'Regu B' },
-  { id: 14, nrp: '30003', nama: 'Rudi KH', jabatan: 'KH (Khusus)', regu: 'Regu A' },
-  { id: 15, nrp: '30004', nama: 'Bambang KH', jabatan: 'KH (Khusus)', regu: 'Regu C' },
-  { id: 16, nrp: '30005', nama: 'Asep Middle', jabatan: 'Middle 1', regu: 'Regu A' },
-  { id: 17, nrp: '30006', nama: 'Roni Middle', jabatan: 'Middle 2', regu: 'Regu B' },
+  { id: 1, nrp: '10001', nama: 'Richard', jabatan: 'Admin Super', regu: '',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&auto=format&fit=crop&q=60',
+    status: 'Aktif', email: '' }
 ];
+
+// NRP daftar akun sistem yang tidak boleh dihapus
+const SYSTEM_NRPS = new Set(BASE_USERS.map(u => u.nrp));
+
 
 const mapDepartment = (kategori, temuanText = '') => {
   const text = (kategori + ' ' + temuanText).toLowerCase();
@@ -450,49 +443,57 @@ export default function App() {
     });
   };
 
+  // ── Inisialisasi Users: Prioritaskan localStorage → Firebase fallback ──────────
+  // BASE_USERS HANYA digunakan jika localStorage benar-benar kosong (install baru)
+  // Data real 51 user yang sudah diinput TIDAK akan tertimpa dummy
   const [users, setUsers] = useState(() => {
     try {
       const saved = localStorage.getItem('sapujagat_users');
       const parsed = saved ? JSON.parse(saved) : null;
-      const baseNrpSet = new Set(BASE_USERS.map(u => u.nrp));
-      const merged = BASE_USERS.map(bu => ({ ...bu }));
-      if (Array.isArray(parsed)) {
+
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // ✅ Ada data real di localStorage — pakai sepenuhnya, abaikan BASE_USERS
+        // Hanya normalize PIN
         parsed.forEach(u => {
           const stored = localStorage.getItem(`smpjdc_pin_${u.id}`);
           if (stored && !stored.startsWith('h')) {
             localStorage.setItem(`smpjdc_pin_${u.id}`, hashPin(stored));
           }
           delete u.pin;
-
-          const idx = merged.findIndex(m => m.nrp === u.nrp);
-          if (idx === -1) {
-            merged.push(u);
-          } else {
-            merged[idx] = { ...merged[idx], ...u };
+          // Auto-init PIN jika belum ada (default = NRP)
+          if (!localStorage.getItem(`smpjdc_pin_${u.id}`)) {
+            localStorage.setItem(`smpjdc_pin_${u.id}`, hashPin(u.nrp || String(u.id)));
           }
         });
-        BASE_USERS.forEach(bu => {
-          const stored = localStorage.getItem(`smpjdc_pin_${bu.id}`);
-          if (!stored) {
-            localStorage.setItem(`smpjdc_pin_${bu.id}`, hashPin(bu.nrp));
-          }
-        });
-      } else {
-        BASE_USERS.forEach(bu => {
-          const stored = localStorage.getItem(`smpjdc_pin_${bu.id}`);
-          if (!stored) {
-            localStorage.setItem(`smpjdc_pin_${bu.id}`, hashPin(bu.nrp));
-          }
-        });
+        // Pastikan superadmin ada (jangan sampai terkunci)
+        const hasSuperAdmin = parsed.some(u => SYSTEM_NRPS.has(u.nrp));
+        if (!hasSuperAdmin) {
+          BASE_USERS.forEach(bu => {
+            parsed.unshift(bu);
+            if (!localStorage.getItem(`smpjdc_pin_${bu.id}`)) {
+              localStorage.setItem(`smpjdc_pin_${bu.id}`, hashPin(bu.nrp));
+            }
+          });
+        }
+        localStorage.setItem('sapujagat_users', JSON.stringify(parsed));
+        signUserData(parsed);
+        return parsed;
       }
-      localStorage.setItem('sapujagat_users', JSON.stringify(merged));
-      signUserData(merged);
-      localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
-      return merged;
+
+      // ❌ localStorage kosong — gunakan BASE_USERS sebagai seed minimal
+      BASE_USERS.forEach(bu => {
+        if (!localStorage.getItem(`smpjdc_pin_${bu.id}`)) {
+          localStorage.setItem(`smpjdc_pin_${bu.id}`, hashPin(bu.nrp));
+        }
+      });
+      localStorage.setItem('sapujagat_users', JSON.stringify(BASE_USERS));
+      signUserData(BASE_USERS);
+      return [...BASE_USERS];
     } catch (e) {
-      return [];
+      return [...BASE_USERS];
     }
   });
+
 
   const [areas, setAreas] = useState(() => {
     try {
@@ -828,28 +829,57 @@ export default function App() {
   }, []);
 
   // Firebase real-time subscription untuk users
+  // ⚠️ PENTING: Firebase data TIDAK boleh hapus user lokal yang ada
+  // Firebase hanya MENAMBAH / MEMPERBARUI user yang sudah ada
   useEffect(() => {
     const db = initFirebase();
     if (!db) { setFirebaseUsersLoaded(true); return; }
     const unsub = subscribeUsers((firebaseData) => {
-      if (!firebaseData) { setFirebaseUsersLoaded(true); return; }
+      if (!firebaseData || !Array.isArray(firebaseData)) { setFirebaseUsersLoaded(true); return; }
       setUsers(prev => {
-        const merged = [...firebaseData];
-        prev.forEach(local => {
-          const idx = merged.findIndex(u => u.id === local.id || (u.firebaseId && u.firebaseId === local.firebaseId));
-          if (idx === -1) {
-            if (merged.length < 200) merged.push(local);
+        // Buat map dari Firebase berdasarkan id & nrp
+        const fbMap = new Map();
+        firebaseData.forEach(u => {
+          if (u.id) fbMap.set(String(u.id), u);
+          if (u.nrp) fbMap.set(`nrp_${u.nrp}`, u);
+        });
+
+        // Mulai dari data lokal (prev) — Firebase hanya update/tambah
+        const merged = prev.map(u => ({ ...u }));
+
+        // Bersihkan firebaseId usang yang tidak ada di Firestore (karena Firestore adalah single source of truth untuk Cloud status)
+        const fbDocIds = new Set(firebaseData.map(u => u.firebaseId).filter(Boolean));
+        for (let i = 0; i < merged.length; i++) {
+          const u = merged[i];
+          if (u.firebaseId && !fbDocIds.has(u.firebaseId)) {
+            console.log(`[Firebase] User ${u.nama} (ID: ${u.id}) memiliki firebaseId usang: ${u.firebaseId}. Bersihkan untuk re-sync.`);
+            delete merged[i].firebaseId;
+          }
+        }
+
+        firebaseData.forEach(fbUser => {
+          const existingByNrp = merged.findIndex(u => u.nrp && u.nrp === fbUser.nrp);
+          const existingById = merged.findIndex(u => String(u.id) === String(fbUser.id));
+          const existingByFbId = merged.findIndex(u => u.firebaseId && u.firebaseId === fbUser.firebaseId);
+
+          const idx = existingByFbId !== -1 ? existingByFbId 
+                    : existingByNrp !== -1 ? existingByNrp
+                    : existingById !== -1 ? existingById : -1;
+
+          if (idx !== -1) {
+            // Update user yang sudah ada — preserve data lokal yang lebih baru
+            merged[idx] = {
+              ...fbUser,
+              ...merged[idx],            // data lokal menang untuk field yang ada
+              firebaseId: fbUser.firebaseId || merged[idx].firebaseId,
+              lastActive: fbUser.lastActive || merged[idx].lastActive,
+            };
           } else {
-            merged[idx] = { ...merged[idx] };
-            if (local.avatar) merged[idx].avatar = local.avatar;
-            if (local.nama) merged[idx].nama = local.nama;
-            if (local.jabatan) merged[idx].jabatan = local.jabatan;
-            if (local.regu) merged[idx].regu = local.regu;
-            if (local.kontak) merged[idx].kontak = local.kontak;
-            if (local.email) merged[idx].email = local.email;
-            if (local.pos) merged[idx].pos = local.pos;
+            // User baru dari Firebase yang belum ada di lokal — tambahkan
+            merged.push(fbUser);
           }
         });
+
         try {
           localStorage.setItem('sapujagat_users', JSON.stringify(merged));
           signUserData(merged);
@@ -857,37 +887,55 @@ export default function App() {
         return merged;
       });
       setFirebaseUsersLoaded(true);
-    }, { limit: 200 });
+    }, { limit: 1000 });
     return () => unsub();
   }, []);
 
-  // Upload user lokal yang belum tersimpan ke Firestore (dengan retry otomatis)
+  // Upload semua user lokal ke Firestore yang belum punya firebaseId
+  // Menggunakan batched upload dengan delay agar tidak rate-limit
   useEffect(() => {
     if (!firebaseUsersLoaded) return;
     let cancelled = false;
-    let retryTimer;
 
-    const uploadMissing = () => {
+    const uploadMissing = async () => {
       if (cancelled) return;
-      setUsers(prev => {
-        const missing = prev.filter(u => !u.firebaseId);
-        if (missing.length === 0) return prev;
-        missing.forEach(u => {
-          addUserToFirestore({ ...u, pin: undefined }).then(fid => {
-            if (fid && !cancelled) {
-              setUsers(p => p.map(x => x.id === u.id ? { ...x, firebaseId: fid } : x));
-            }
-          });
-        });
-        return prev;
-      });
-      // Retry setiap 10 detik sampai semua tersimpan
-      retryTimer = setTimeout(uploadMissing, 10000);
+      const currentUsers = JSON.parse(localStorage.getItem('sapujagat_users') || '[]');
+      const missing = currentUsers.filter(u => !u.firebaseId);
+      if (missing.length === 0) return;
+
+      console.log(`[Firebase] Mengupload ${missing.length} user yang belum tersync...`);
+
+      // Upload satu per satu dengan delay 300ms agar tidak flood Firebase
+      for (let i = 0; i < missing.length; i++) {
+        if (cancelled) break;
+        const u = missing[i];
+        try {
+          const fid = await addUserToFirestore({ ...u, pin: undefined });
+          if (fid && !cancelled) {
+            setUsers(p => {
+              const updated = p.map(x => x.id === u.id ? { ...x, firebaseId: fid } : x);
+              try { localStorage.setItem('sapujagat_users', JSON.stringify(updated)); } catch(e) {}
+              return updated;
+            });
+          }
+        } catch(e) {
+          console.warn('[Firebase] Gagal upload user:', u.nama, e);
+        }
+        // Delay antar upload untuk hindari rate limit
+        if (i < missing.length - 1) {
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+      // Retry setelah 30 detik jika masih ada yang gagal
+      if (!cancelled) {
+        setTimeout(uploadMissing, 30000);
+      }
     };
 
     uploadMissing();
-    return () => { cancelled = true; clearTimeout(retryTimer); };
+    return () => { cancelled = true; };
   }, [firebaseUsersLoaded]);
+
 
   // Firebase real-time subscription untuk areas/checkpoints
   useEffect(() => {

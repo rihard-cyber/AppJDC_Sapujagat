@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { UserPlus, User, Shield, Smartphone, Hash, Users, Search, ChevronDown, ChevronRight, Save, MessageSquare, Edit3, X, Check, Trash2 } from 'lucide-react';
+import { UserPlus, User, Shield, Smartphone, Hash, Users, Search, ChevronDown, ChevronRight, Save, MessageSquare, Edit3, X, Check, Trash2, RefreshCw, AlertCircle, CloudOff, Cloud } from 'lucide-react';
 import { getWAContacts, saveWAContacts } from '../data/waContacts';
+import { addUserToFirestore } from '../utils/firebase';
+
 
 const ROLE_OPTIONS = [
   'Admin Super', 'Manajemen', 'SPV', 'Danru', 'Wadanru', 'Middle 1', 'Middle 2', 'Anggota', 'BKO', 'KH (Khusus)', 'Guest Viewer'
@@ -34,6 +36,9 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
   const [editRegu, setEditRegu] = useState('');
   const [waContacts, setWaContacts] = useState(() => getWAContacts());
   const [saveStatus, setSaveStatus] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+
 
   const allowedRoles = currentUser?.jabatan === 'Admin Super'
     ? ROLE_OPTIONS
@@ -89,6 +94,25 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
 
     setAnggotaInput('');
   };
+
+  // Force sync semua user ke Firebase
+  const handleForceSyncFirebase = async () => {
+    setIsSyncing(true);
+    setSyncResult(null);
+    let synced = 0, failed = 0;
+    for (const u of users) {
+      if (u.firebaseId) { synced++; continue; }
+      try {
+        const fid = await addUserToFirestore({ ...u, pin: undefined });
+        if (fid) synced++; else failed++;
+      } catch(e) { failed++; }
+      await new Promise(r => setTimeout(r, 200));
+    }
+    setIsSyncing(false);
+    setSyncResult({ synced, failed, total: users.length });
+    setTimeout(() => setSyncResult(null), 8000);
+  };
+
 
   const visibleUsers = users.filter(u => {
     // Sembunyikan 'Admin Super' dari seluruh role selain 'Admin Super' itu sendiri
@@ -171,6 +195,64 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
           box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
         }
       `}</style>
+
+      {/* ── Panel Status Sinkronisasi Firebase ─────────────────────────── */}
+      {currentUser?.jabatan === 'Admin Super' && (() => {
+        const unsyncedCount = users.filter(u => !u.firebaseId).length;
+        const syncedCount = users.length - unsyncedCount;
+        return (
+          <div className="glass-panel" style={{
+            padding: '1rem 1.25rem',
+            border: unsyncedCount > 0 ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(16,185,129,0.3)',
+            background: unsyncedCount > 0 ? 'rgba(239,68,68,0.05)' : 'rgba(16,185,129,0.05)',
+            display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between'
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {unsyncedCount > 0
+                  ? <AlertCircle size={16} style={{ color: '#ef4444' }} />
+                  : <Cloud size={16} style={{ color: '#10b981' }} />}
+                <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>
+                  {unsyncedCount > 0
+                    ? `⚠️ ${unsyncedCount} user BELUM tersync ke Firebase`
+                    : `✅ Semua ${users.length} user sudah tersync ke Firebase`}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: '1.5rem' }}>
+                <span>Total user: <strong style={{ color: 'var(--text-primary)' }}>{users.length}</strong></span>
+                <span>Tersync (Cloud): <strong style={{ color: '#10b981' }}>{syncedCount}</strong></span>
+                <span>Belum sync: <strong style={{ color: unsyncedCount > 0 ? '#ef4444' : '#10b981' }}>{unsyncedCount}</strong></span>
+              </div>
+              {unsyncedCount > 0 && (
+                <div style={{ fontSize: '0.7rem', color: '#f59e0b', marginTop: '0.15rem' }}>
+                  💡 User yang belum sync tidak akan muncul di browser/perangkat lain. Klik Force Sync untuk memperbaiki.
+                </div>
+              )}
+              {syncResult && (
+                <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600 }}>
+                  ✓ Sync selesai: {syncResult.synced} berhasil
+                  {syncResult.failed > 0 ? `, ${syncResult.failed} gagal (retry otomatis)` : ''}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleForceSyncFirebase}
+              disabled={isSyncing}
+              style={{
+                padding: '0.55rem 1.25rem', borderRadius: '8px', border: 'none',
+                background: isSyncing ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.9)',
+                color: 'white', cursor: isSyncing ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.82rem',
+                boxShadow: isSyncing ? 'none' : '0 0 12px rgba(59,130,246,0.4)'
+              }}
+            >
+              <RefreshCw size={15} style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }} />
+              {isSyncing ? 'Mengupload...' : 'Force Sync ke Firebase'}
+            </button>
+          </div>
+        );
+      })()}
+
       {/* Form Tambah Anggota per Regu */}
       <div className="glass-panel" style={{ padding: '1.5rem' }}>
         <h3 style={{ fontSize: '1.05rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
