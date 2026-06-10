@@ -50,7 +50,7 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
     const matchShift = filterShift === 'All' || r.shift === filterShift;
     const matchFloor = filterFloor === 'All' || r.lantai === filterFloor;
     const matchOfficer = filterOfficer === 'All' || r.userName === filterOfficer;
-    const matchDate = !filterDate || r.timestamp.startsWith(filterDate);
+    const matchDate = !filterDate || r.timestamp?.startsWith(filterDate);
     const matchKategori = filterKategori === 'All' || (r.kategori || '') === filterKategori;
     const matchKondisi = filterKondisi === 'All' || 
       (filterKondisi === 'Aman' && r.kondisi === 'Aman dan Kondusif') ||

@@ -65,6 +65,7 @@ export default function BarcodeGenerator({
   const [searchPos, setSearchPos] = useState('');
   const [editArea, setEditArea] = useState(null);
   const [editPos, setEditPos] = useState(null);
+  const canvasRef = useRef(null);
 
   // ── Single Area Creator state ──
   const [floor, setFloor] = useState('1');
