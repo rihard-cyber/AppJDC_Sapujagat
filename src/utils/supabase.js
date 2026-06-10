@@ -125,11 +125,8 @@ const createUpdater = (tableName) => async (supabaseId, updates) => {
 const createDeleter = (tableName) => async (supabaseId) => {
   const client = initSupabase();
   if (!client) return;
-  try {
-    await client.from(tableName).delete().eq('supabase_id', supabaseId);
-  } catch (e) {
-    console.warn(`[Supabase] Gagal hapus ${tableName}:`, e);
-  }
+  const { error } = await client.from(tableName).delete().eq('supabase_id', supabaseId);
+  if (error) throw error;
 };
 
 const createLoader = (tableName, orderField = 'created_at') => async () => {

@@ -62,7 +62,7 @@ import RosterManagement from './components/RosterManagement';
 import LaporForm from './components/LaporForm';
 import BackupRestore from './components/BackupRestore';
 import ComplaintForm from './components/ComplaintForm';
-import BottomNav from './components/BottomNav';
+import ConfirmModal from './components/ConfirmModal';
 import INITIAL_POS_LIST from './data/posList';
 
 const ManagementDashboard = lazy(() => import('./components/ManagementDashboard'));
@@ -162,6 +162,7 @@ export default function App() {
 
   // Custom Profile Update States
   const [tempAvatar, setTempAvatar] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -900,10 +901,10 @@ export default function App() {
         if (cancelled) break;
         const u = missing[i];
         try {
-          const fid = await addUserToFirestore({ ...u, pin: undefined });
+          const fid = await addUserToFirestore({ ...u, pin: undefined, shift: undefined });
           if (fid && !cancelled) {
             setUsers(p => {
-              const updated = p.map(x => x.id === u.id ? { ...x, firebaseId: fid } : x);
+              const updated = p.map(x => x.id === u.id ? { ...x, supabaseId: fid, firebaseId: fid } : x);
               try { localStorage.setItem('sapujagat_users', JSON.stringify(updated)); } catch(e) {}
               return updated;
             });
@@ -1460,13 +1461,13 @@ export default function App() {
       email: newUser.email || ''
     };
     setUsers(prev => [...prev, userData]);
-    addUserToFirestore(userData).then(firebaseId => {
-      if (firebaseId) {
+    addUserToFirestore(userData).then(fid => {
+      if (fid) {
         setUsers(prev => prev.map(u =>
-          u.id === userId ? { ...u, firebaseId } : u
+          u.id === userId ? { ...u, supabaseId: fid, firebaseId: fid } : u
         ));
       }
-    }).catch(e => console.warn('[Firebase] Gagal simpan user:', e));
+    }).catch(e => addToast(`Gagal sync user baru ke Cloud: ${e.message}`, 'warning'));
     if (newUser.pin) {
       localStorage.setItem(`smpjdc_pin_${userId}`, hashPin(newUser.pin));
     }
@@ -1476,27 +1477,49 @@ export default function App() {
   const handleUpdateUser = (userId, updates) => {
     setUsers(prev => {
       const user = prev.find(u => u.id === userId);
-      if (user && user.firebaseId) {
-        updateUserInFirestore(user.firebaseId, updates).catch(e => console.warn('[Firebase] Gagal update user:', e));
+      if (user) {
+        const fid = user.supabaseId || user.firebaseId;
+        if (fid) {
+          updateUserInFirestore(fid, updates).catch(e =>
+            addToast(`Gagal update user di Cloud: ${e.message}`, 'warning')
+          );
+        }
       }
-      return prev.map(u => u.id === userId ? { ...u, ...updates } : u);
+      const updated = prev.map(u => u.id === userId ? { ...u, ...updates } : u);
+      try { localStorage.setItem('sapujagat_users', JSON.stringify(updated)); } catch(e) {}
+      return updated;
     });
     if (currentUser && currentUser.id === userId) {
       setCurrentUser(prev => ({ ...prev, ...updates }));
     }
-    addToast(`Data user berhasil diperbarui!`, 'success');
+    addToast('Data user berhasil diperbarui!', 'success');
   };
 
   const handleDeleteUser = (userId) => {
-    if (!window.confirm(`Yakin ingin menghapus user ini? Tindakan ini tidak bisa dibatalkan.`)) return;
-    setUsers(prev => {
-      const user = prev.find(u => u.id === userId);
-      if (user && user.firebaseId) {
-        deleteUserFromFirestore(user.firebaseId).catch(e => console.warn('[Firebase] Gagal hapus user:', e));
-      }
-      return prev.filter(u => u.id !== userId);
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    setConfirmDelete({
+      title: 'Hapus User',
+      message: <>Yakin ingin menghapus <strong>{user.nama}</strong> (NRP: {user.nrp})?<br/>Tindakan ini tidak bisa dibatalkan.</>,
+      confirmLabel: 'Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDelete(null);
+        try {
+          const fid = user.supabaseId || user.firebaseId;
+          if (fid) await deleteUserFromFirestore(fid);
+          setUsers(prev => {
+            const filtered = prev.filter(u => u.id !== userId);
+            try { localStorage.setItem('sapujagat_users', JSON.stringify(filtered)); } catch(e) {}
+            return filtered;
+          });
+          addToast(`User ${user.nama} berhasil dihapus!`, 'success');
+        } catch (e) {
+          addToast(`Gagal menghapus ${user.nama} dari Cloud: ${e.message}`, 'danger');
+        }
+      },
+      onCancel: () => setConfirmDelete(null),
     });
-    addToast('User berhasil dihapus!', 'success');
   };
 
   const handleResetUsers = async () => {
@@ -2355,6 +2378,16 @@ export default function App() {
           <span>⚠️ Koneksi terputus — data tidak akan tersimpan sampai koneksi kembali</span>
         </div>
       )}
+
+      <ConfirmModal
+        show={!!confirmDelete}
+        title={confirmDelete?.title}
+        message={confirmDelete?.message}
+        confirmLabel={confirmDelete?.confirmLabel}
+        variant={confirmDelete?.variant}
+        onConfirm={confirmDelete?.onConfirm}
+        onCancel={confirmDelete?.onCancel}
+      />
 
       <div className="toast-container">
         {toasts.map(t => (
