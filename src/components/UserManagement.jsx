@@ -100,16 +100,26 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
     setIsSyncing(true);
     setSyncResult(null);
     let synced = 0, failed = 0;
+    const errors = [];
     for (const u of users) {
       if (u.supabaseId) { synced++; continue; }
       try {
         const sid = await addUserToFirestore({ ...u, pin: undefined });
-        if (sid) synced++; else failed++;
-      } catch(e) { failed++; }
+        if (sid) {
+          synced++;
+        } else {
+          failed++;
+          errors.push(`${u.nama}: returned null`);
+        }
+      } catch(e) {
+        failed++;
+        errors.push(`${u.nama}: ${e.message || e}`);
+      }
       await new Promise(r => setTimeout(r, 200));
     }
     setIsSyncing(false);
     setSyncResult({ synced, failed, total: users.length });
+    if (errors.length > 0) console.error('[Sync Errors]', errors);
     setTimeout(() => setSyncResult(null), 8000);
   };
 
