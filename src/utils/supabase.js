@@ -94,17 +94,12 @@ const createSubscriber = (tableName, callback, orderField = 'created_at', opts =
 const createAdder = (tableName) => async (data) => {
   const client = initSupabase();
   if (!client) return null;
-  try {
-    const dbData = prepareData(data);
-    if (!dbData.created_at) dbData.created_at = new Date().toISOString();
-    dbData.firebase_saved_at = new Date().toISOString();
-    const { data: result, error } = await client.from(tableName).insert(dbData).select().single();
-    if (error) throw error;
-    return result.supabase_id;
-  } catch (e) {
-    console.warn(`[Supabase] Gagal simpan ${tableName}:`, e);
-    return null;
-  }
+  const dbData = prepareData(data);
+  if (!dbData.created_at) dbData.created_at = new Date().toISOString();
+  dbData.firebase_saved_at = new Date().toISOString();
+  const { data: result, error } = await client.from(tableName).insert(dbData).select().single();
+  if (error) throw error;
+  return result.supabase_id;
 };
 
 const createUpdater = (tableName) => async (supabaseId, updates) => {
