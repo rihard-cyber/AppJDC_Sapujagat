@@ -172,19 +172,21 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <style>{`
         .user-action-btn {
-          padding: 0.35rem;
+          padding: 0.45rem 0.5rem;
           border-radius: 6px;
-          border: 1px solid transparent;
+          border: 2px solid transparent;
           background: transparent;
           cursor: pointer;
           transition: all 0.2s ease;
           display: flex;
           align-items: center;
           justify-content: center;
+          touch-action: manipulation;
+          position: relative;
+          z-index: 10;
         }
-        .user-action-btn:hover {
-          border-color: rgba(255, 255, 255, 0.1);
-          background: rgba(255, 255, 255, 0.05);
+        .user-action-btn:active {
+          transform: scale(0.92);
         }
         .user-action-btn.edit {
           color: #94a3b8;
@@ -530,8 +532,11 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
                     <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
                       {allowedRoles.includes(u.jabatan) && (
                         <button 
-                          onClick={() => { 
-                            setEditingUser(u.id); 
+                          onClick={(e) => { 
+                            e.stopPropagation();
+                            e.preventDefault();
+                            console.log('[UserMgmt] Edit clicked:', u?.id, u?.nama);
+                            setEditingUser(u.id);
                             setEditRole(u.jabatan); 
                             setEditRegu(u.regu || '-'); 
                           }} 
@@ -543,7 +548,14 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
                       )}
                       {allowedRoles.includes(u.jabatan) && (
                         <button 
-                          onClick={() => onDeleteUser && onDeleteUser(u.id)} 
+                          onClick={(e) => { 
+                            e.stopPropagation();
+                            e.preventDefault();
+                            console.log('[UserMgmt] Delete clicked:', u?.id, u?.nama);
+                            if (window.confirm(`Yakin hapus ${u.nama}?`)) {
+                              if (onDeleteUser) onDeleteUser(u.id);
+                            }
+                          }} 
                           className="user-action-btn delete" 
                           title="Hapus user"
                         >
