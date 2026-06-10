@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { UserPlus, User, Shield, Smartphone, Hash, Users, Search, ChevronDown, ChevronRight, Save, MessageSquare, Edit3, X, Check, Trash2, RefreshCw, AlertCircle, CloudOff, Cloud } from 'lucide-react';
 import { getWAContacts, saveWAContacts } from '../data/waContacts';
-import { addUserToFirestore } from '../utils/firebase';
+import { addUserToFirestore } from '../utils/supabase';
 
 
 const ROLE_OPTIONS = [

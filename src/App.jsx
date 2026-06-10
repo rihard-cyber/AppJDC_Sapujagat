@@ -14,9 +14,9 @@ import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { executeBackHandlers } from './utils/navigation';
 import { hashPin, verifyPin, validateSession, signUserData, verifyUserDataSignature, signRoleInSession, verifyRoleInSession } from './utils/security';
-import { isFirebaseConfigured } from './utils/firebaseConfig';
+import { isSupabaseConfigured } from './utils/supabaseConfig';
 import { compressImage } from './utils/image';
-import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore,
+import { initSupabase, subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore,
   subscribeReports, addReportToFirestore,
   subscribeFindings, addFindingToFirestore, updateFindingInFirestore,
   subscribeAttendanceLogs, addAttendanceLogToFirestore, updateAttendanceLogInFirestore,
@@ -25,7 +25,7 @@ import { initFirebase, subscribeComplaints, addComplaintToFirestore, updateCompl
   subscribeAreas, addAreaToFirestore, updateAreaInFirestore, deleteAreaFromFirestore,
   subscribePosList, addPosToFirestore, updatePosInFirestore, deletePosFromFirestore,
   subscribeWAContacts, saveWAContactsToFirestore,
-  clearAllPatrolDataInFirestore, deleteOldDataInFirestore } from './utils/firebase';
+  clearAllPatrolDataInFirestore, deleteOldDataInFirestore } from './utils/supabase';
 import { 
   LayoutDashboard, 
   QrCode, 
@@ -242,7 +242,7 @@ export default function App() {
     const hasExistingUsers = Array.isArray(users) && users.length > 0;
 
     // If Firebase configured but localStorage empty (e.g. incognito), assume users exist
-    if (!hasExistingUsers && isFirebaseConfigured()) {
+    if (!hasExistingUsers && isSupabaseConfigured()) {
       setHasUsers(true);
       return;
     }
@@ -734,7 +734,7 @@ export default function App() {
 
   // Firebase real-time subscription untuk complaints
   useEffect(() => {
-    const db = initFirebase();
+    const db = initSupabase();
     if (!db) return;
 
     const unsub = subscribeComplaints((firebaseData) => {
@@ -754,7 +754,7 @@ export default function App() {
 
   // Firebase real-time subscription untuk patrol reports
   useEffect(() => {
-    const db = initFirebase();
+    const db = initSupabase();
     if (!db) return;
     const unsub = subscribeReports((firebaseData) => {
       if (!firebaseData) return;
@@ -773,7 +773,7 @@ export default function App() {
 
   // Firebase real-time subscription untuk findings
   useEffect(() => {
-    const db = initFirebase();
+    const db = initSupabase();
     if (!db) return;
     const unsub = subscribeFindings((firebaseData) => {
       if (!firebaseData) return;
@@ -792,7 +792,7 @@ export default function App() {
 
   // Firebase real-time subscription untuk attendance logs
   useEffect(() => {
-    const db = initFirebase();
+    const db = initSupabase();
     if (!db) return;
     const unsub = subscribeAttendanceLogs((firebaseData) => {
       if (!firebaseData) return;
@@ -811,7 +811,7 @@ export default function App() {
 
   // Firebase real-time subscription untuk mutasi logs
   useEffect(() => {
-    const db = initFirebase();
+    const db = initSupabase();
     if (!db) return;
     const unsub = subscribeMutasiLogs((firebaseData) => {
       if (!firebaseData) return;
@@ -832,7 +832,7 @@ export default function App() {
   // ⚠️ PENTING: Firebase data TIDAK boleh hapus user lokal yang ada
   // Firebase hanya MENAMBAH / MEMPERBARUI user yang sudah ada
   useEffect(() => {
-    const db = initFirebase();
+    const db = initSupabase();
     if (!db) { setFirebaseUsersLoaded(true); return; }
     const unsub = subscribeUsers((firebaseData) => {
       if (!firebaseData || !Array.isArray(firebaseData)) { setFirebaseUsersLoaded(true); return; }
@@ -939,7 +939,7 @@ export default function App() {
 
   // Firebase real-time subscription untuk areas/checkpoints
   useEffect(() => {
-    const db = initFirebase();
+    const db = initSupabase();
     if (!db) return;
     const unsub = subscribeAreas((firebaseData) => {
       if (!firebaseData) return;
@@ -996,7 +996,7 @@ export default function App() {
 
   // Firebase real-time subscription untuk pos list
   useEffect(() => {
-    const db = initFirebase();
+    const db = initSupabase();
     if (!db) return;
     const unsub = subscribePosList((firebaseData) => {
       if (!firebaseData) return;
@@ -1023,7 +1023,7 @@ export default function App() {
 
   // Firebase real-time subscription untuk WA Contacts
   useEffect(() => {
-    const db = initFirebase();
+    const db = initSupabase();
     if (!db) return;
     const unsub = subscribeWAContacts((firebaseData) => {
       if (!firebaseData) return;
@@ -1060,7 +1060,68 @@ export default function App() {
     return () => { cancelled = true; clearTimeout(retryTimer); };
   }, [firebaseUsersLoaded]);
 
-  // Auto-sync currentUser ketika data dari FireStore berubah
+  // ── Batch sync semua localStorage ke Supabase ──────────────────────────
+  // Upload data lokal yang belum punya firebaseId/supabaseId ke Supabase
+  // Menjamin tidak ada data yang hilang saat migrasi
+  useEffect(() => {
+    const db = initSupabase();
+    if (!db || !firebaseUsersLoaded) return;
+    let cancelled = false;
+
+    const SYNC_COLLECTIONS = [
+      { key: 'smpjdc_complaints', adder: addComplaintToFirestore },
+      { key: 'sapujagat_reports', adder: addReportToFirestore },
+      { key: 'sapujagat_findings', adder: addFindingToFirestore },
+      { key: 'smpjdc_attendance_logs', adder: addAttendanceLogToFirestore },
+      { key: 'smpjdc_mutasi_logs', adder: addMutasiLogToFirestore },
+    ];
+
+    const syncAll = async () => {
+      for (const { key, adder } of SYNC_COLLECTIONS) {
+        if (cancelled) break;
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        let items;
+        try { items = JSON.parse(raw); } catch { continue; }
+        const missing = items.filter(item => !item.firebaseId && !item.supabaseId);
+        if (missing.length === 0) continue;
+
+        console.log(`[Sync] Upload ${missing.length} items from ${key}...`);
+
+        for (let i = 0; i < missing.length; i++) {
+          if (cancelled) break;
+          const item = missing[i];
+          const id = await adder(item);
+          if (id) {
+            const updater = (setter, field) => {
+              setter(prev => prev.map(x => x.id === item.id
+                ? { ...x, [field]: id, firebaseId: id }
+                : x
+              ));
+            };
+
+            if (key === 'smpjdc_complaints') updater(setComplaints, 'supabaseId');
+            else if (key === 'sapujagat_reports') updater(setReports, 'supabaseId');
+            else if (key === 'sapujagat_findings') updater(setFindings, 'supabaseId');
+            else if (key === 'smpjdc_attendance_logs') updater(setAttendanceLogs, 'supabaseId');
+            else if (key === 'smpjdc_mutasi_logs') updater(setMutasiLogs, 'supabaseId');
+
+            try {
+              const current = JSON.parse(localStorage.getItem(key) || '[]');
+              const synced = current.map(x => x.id === item.id ? { ...x, supabaseId: id, firebaseId: id } : x);
+              localStorage.setItem(key, JSON.stringify(synced));
+            } catch (e) {}
+          }
+          if (i < missing.length - 1) await new Promise(r => setTimeout(r, 200));
+        }
+      }
+    };
+
+    syncAll();
+    return () => { cancelled = true; };
+  }, [firebaseUsersLoaded]);
+
+  // Auto-sync currentUser ketika data dari Supabase berubah
   useEffect(() => {
     if (!currentUser) return;
     const found = users.find(u => u.id === currentUser.id);

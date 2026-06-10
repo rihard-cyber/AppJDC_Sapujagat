@@ -107,7 +107,7 @@ export function getDatesInMonth(yearMonth) {
 export async function saveRosterWithCloud(yearMonth, data, userId) {
   saveRoster(yearMonth, data);
   try {
-    const { saveRosterToFirestore } = await import('../utils/firebase');
+    const { saveRosterToFirestore } = await import('../utils/supabase');
     await saveRosterToFirestore(yearMonth, data, userId);
   } catch (e) {
     // Firebase tidak dikonfigurasi — tidak masalah
@@ -116,7 +116,7 @@ export async function saveRosterWithCloud(yearMonth, data, userId) {
 
 export async function loadRosterWithCloud(yearMonth) {
   try {
-    const { loadRosterFromFirestore } = await import('../utils/firebase');
+    const { loadRosterFromFirestore } = await import('../utils/supabase');
     const cloud = await loadRosterFromFirestore(yearMonth);
     if (cloud) {
       const local = getRoster(yearMonth);
