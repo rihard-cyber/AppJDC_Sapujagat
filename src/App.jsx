@@ -45,7 +45,8 @@ import {
   FileText,
   Database,
   Camera,
-  Lock
+  Lock,
+  Calendar
 } from 'lucide-react';
 import ReportsExport from './components/ReportsExport';
 import TargetDashboard from './components/TargetDashboard';
