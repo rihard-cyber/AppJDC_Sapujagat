@@ -1621,9 +1621,6 @@ export default function App() {
                   <button onClick={() => handleNavClick('reports')} className={`nav-tab-btn ${currentTab === 'reports' ? 'active' : ''}`}>
                     <FileSpreadsheet size={18} /> <span>Laporan & Log Temuan</span>
                   </button>
-                  <button onClick={() => handleNavClick('user-management')} className={`nav-tab-btn ${currentTab === 'user-management' ? 'active' : ''}`}>
-                    <Users size={18} /> <span>Management Anggota</span>
-                  </button>
                 </>
               )}
               {['Danru', 'Wadanru', 'Anggota'].includes(currentUser.jabatan) && (
@@ -1785,7 +1782,7 @@ export default function App() {
             </div>
           )}
 
-          {currentTab === 'user-management' && (isGodMode || isAdmin || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
+          {currentTab === 'user-management' && (isGodMode || isAdmin) && (
             <UserManagement users={users} currentUser={currentUser} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} />
           )}
 

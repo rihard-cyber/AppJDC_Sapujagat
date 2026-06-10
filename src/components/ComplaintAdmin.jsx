@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, CheckCircle, AlertTriangle, Clock, Filter, Search, Send, Phone, Building, MapPin, User, FileText, X, ChevronRight, QrCode, Copy, Download } from 'lucide-react';
+import { MessageSquare, CheckCircle, AlertTriangle, Clock, Filter, Search, Send, Phone, Building, MapPin, User, FileText, X, ChevronRight, QrCode, Copy, Download, Printer } from 'lucide-react';
 
 const DEPARTMENTS = ['Teknisi', 'Cleaning', 'Keamanan'];
 
@@ -172,6 +172,7 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
             ))}
           </div>
         </div>
+        <button onClick={() => window.print()} className="btn-secondary" style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Printer size={12} /> Cetak</button>
       </div>
 
       {filtered.length === 0 ? (

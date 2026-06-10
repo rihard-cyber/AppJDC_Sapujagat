@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Calendar, Users, MapPin, Clock, CheckCircle2, UserCheck, RefreshCw, 
   ClipboardList, HelpCircle, MessageSquare, Phone, AlertTriangle, Check, 
-  User, ExternalLink, Shield, Activity, Edit2, Save, X, BookOpen
+  User, ExternalLink, Shield, Activity, Edit2, Save, X, BookOpen, Search
 } from 'lucide-react';
 import { SHIFT_CODES, getRoster, getYearMonth, getDatesInMonth } from '../data/rosterData';
 
@@ -28,15 +28,36 @@ export default function AbsensiRegu({
     return currentUser?.regu || 'Regu A';
   });
   
-  const [selectedShift, setSelectedShift] = useState('P'); // 'P' | 'S' | 'M' | 'Kh'
+  const [selectedShift, setSelectedShift] = useState('P'); // 'P' | 'S' | 'M' | 'Md' etc
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'form' | 'history'
+  const [memberSearch, setMemberSearch] = useState('');
   
   // For phone number editing
   const [phoneInputs, setPhoneInputs] = useState({});
   const [editingPhoneId, setEditingPhoneId] = useState(null);
 
-  // Get active guards for the selected Regu
-  const reguMembers = users.filter(u => u.regu === selectedRegu);
+  // All patrol users — Danru/Wadanru can pick from anyone
+  const allPatrolUsers = useMemo(() =>
+    users.filter(u => ['Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)', 'Middle 1', 'Middle 2'].includes(u.jabatan)),
+  [users]);
+
+  // Filter by regu + search
+  const filteredPatrolUsers = useMemo(() => {
+    let list = allPatrolUsers;
+    if (selectedRegu && selectedRegu !== 'Semua Regu') {
+      list = list.filter(u => u.regu === selectedRegu);
+    }
+    if (memberSearch.trim()) {
+      const q = memberSearch.trim().toLowerCase();
+      list = list.filter(u =>
+        u.nama?.toLowerCase().includes(q) ||
+        u.nrp?.toLowerCase().includes(q) ||
+        u.jabatan?.toLowerCase().includes(q) ||
+        u.regu?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [allPatrolUsers, selectedRegu, memberSearch]);
 
   // Rows state for table editing
   const [rows, setRows] = useState([]);
@@ -48,7 +69,7 @@ export default function AbsensiRegu({
     return '-';
   };
 
-  // Re-generate table rows when Regu or Shift changes
+  // Re-generate table rows when Regu or Shift or search changes
   useEffect(() => {
     const existingLog = attendanceLogs.find(
       log => log.tanggal === todayStr && log.regu === selectedRegu && log.shift === selectedShift
@@ -57,13 +78,15 @@ export default function AbsensiRegu({
     if (existingLog) {
       setRows(existingLog.details);
     } else {
-      const defaultRows = reguMembers.map((member, index) => {
+      const defaultRows = filteredPatrolUsers.map((member, index) => {
         const posIndex = index % (posList.length || 1);
         const defaultPos = posList[posIndex] ? posList[posIndex].titik : '';
         
         return {
           personilId: member.id,
           nama: member.nama,
+          nrp: member.nrp,
+          regu: member.regu,
           jabatan: member.jabatan,
           status: 'Hadir',
           alasan: '',
@@ -74,7 +97,7 @@ export default function AbsensiRegu({
       });
       setRows(defaultRows);
     }
-  }, [selectedRegu, selectedShift, users, areas, attendanceLogs]);
+  }, [selectedRegu, selectedShift, filteredPatrolUsers, attendanceLogs]);
 
   const handleRowChange = (index, field, value) => {
     setRows(prev => prev.map((row, idx) => {
@@ -123,8 +146,8 @@ export default function AbsensiRegu({
     setActiveTab('dashboard');
   };
 
-  // Get substitute options
-  const substituteOptions = users.filter(u => u.regu !== selectedRegu && ['Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)'].includes(u.jabatan));
+  // Get substitute options — all patrol users (cross-regu)
+  const substituteOptions = users.filter(u => ['Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)'].includes(u.jabatan));
 
   // Find if plotting has been saved today for the selected regu
   // Aggregates from both traditional and roster-based logs
@@ -651,22 +674,36 @@ _Sistem Manajemen Keamanan JDC_`;
               </div>
               
               <div className="step-field">
-                <label><Users size={12} /> REGU</label>
-                <select value={selectedRegu} onChange={e => setSelectedRegu(e.target.value)} className="modern-select">
-                  {['Regu A', 'Regu B', 'Regu C', 'Regu D', 'Non-Regu'].map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="step-field">
-                <label><Clock size={12} /> SHIFT JAGA</label>
+                <label><Clock size={12} /> SHIFT JAGA (Pilih Shift)</label>
                 <select value={selectedShift} onChange={e => setSelectedShift(e.target.value)} className="modern-select">
                   {Object.entries(SHIFT_CODES).filter(([c]) => c !== 'X').map(([code, info]) => (
                     <option key={code} value={code}>{code} ({info.label}: {info.jam})</option>
                   ))}
                 </select>
               </div>
+
+              <div className="step-field">
+                <label><Users size={12} /> REGU (Filter)</label>
+                <select value={selectedRegu} onChange={e => setSelectedRegu(e.target.value)} className="modern-select">
+                  <option value="Semua Regu">Semua Regu</option>
+                  {['Regu A', 'Regu B', 'Regu C', 'Regu D', 'Non-Regu'].map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Search Members */}
+            <div className="step-field">
+              <label><Search size={12} /> CARI ANGGOTA (Filter Nama/NRP/Jabatan/Regu)</label>
+              <input
+                type="text"
+                value={memberSearch}
+                onChange={e => setMemberSearch(e.target.value)}
+                placeholder="Ketik nama, NRP, jabatan, atau regu..."
+                className="modern-input"
+                style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
+              />
             </div>
 
             {/* Members Table */}
@@ -675,8 +712,10 @@ _Sistem Manajemen Keamanan JDC_`;
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border-glass)' }}>
                     <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>No</th>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Nama (Auto)</th>
-                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Jabatan (Auto)</th>
+                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Nama</th>
+                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>NRP</th>
+                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Regu</th>
+                    <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Jabatan</th>
                     <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Keterangan Hadir</th>
                     <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Jika Tidak Hadir Karena</th>
                     <th style={{ padding: '0.85rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Nama Pengganti (Tukar Shift / Backup)</th>
@@ -687,8 +726,9 @@ _Sistem Manajemen Keamanan JDC_`;
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                        Tidak ada personil yang terdaftar dalam {selectedRegu}.
+                      <td colSpan="10" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        Tidak ada personil yang cocok dengan filter pencarian. <br />
+                        <span style={{ fontSize: '0.75rem' }}>Gunakan kolom "Cari Anggota" di atas untuk mencari, atau ubah filter Regu.</span>
                       </td>
                     </tr>
                   ) : (
@@ -696,6 +736,10 @@ _Sistem Manajemen Keamanan JDC_`;
                       <tr key={row.personilId} style={{ borderBottom: '1px solid var(--border-glass)' }}>
                         <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 600 }}>{idx + 1}</td>
                         <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', fontWeight: 700 }}>{row.nama}</td>
+                        <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{row.nrp || '-'}</td>
+                        <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem' }}>
+                          <span style={{ padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600, background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>{row.regu || '-'}</span>
+                        </td>
                         <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{row.jabatan}</td>
                         <td style={{ padding: '0.75rem 1rem' }}>
                           <select 

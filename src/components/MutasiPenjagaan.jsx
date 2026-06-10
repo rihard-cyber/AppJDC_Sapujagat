@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { registerBackHandler } from '../utils/navigation';
-import { Clock, MapPin, FileText, Camera, Send, History, Trash2, Info, Search, AlertTriangle, Wrench, Radio, X } from 'lucide-react';
+import { Clock, MapPin, FileText, Camera, Send, History, Trash2, Info, Search, AlertTriangle, Wrench, Radio, X, Printer } from 'lucide-react';
 import { compressImage } from '../utils/image';
 
 const KATEGORI_MUTASI = [
@@ -176,6 +176,7 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                 <option value="">Semua Kategori</option>
                 {KATEGORI_MUTASI.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
               </select>
+              <button onClick={() => window.print()} className="btn-secondary" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Printer size={14} /> Cetak</button>
               </div>
               {kategori === '__lainnya__' && (
                 <input type="text" value={kategoriLainnya} onChange={e => setKategoriLainnya(e.target.value)}
