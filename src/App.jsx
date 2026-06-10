@@ -117,6 +117,8 @@ const BASE_USERS = [
   { id: 13, nrp: '30002', nama: 'Slamet BKO', jabatan: 'BKO', regu: 'Regu B' },
   { id: 14, nrp: '30003', nama: 'Rudi KH', jabatan: 'KH (Khusus)', regu: 'Regu A' },
   { id: 15, nrp: '30004', nama: 'Bambang KH', jabatan: 'KH (Khusus)', regu: 'Regu C' },
+  { id: 16, nrp: '30005', nama: 'Asep Middle', jabatan: 'Middle 1', regu: 'Regu A' },
+  { id: 17, nrp: '30006', nama: 'Roni Middle', jabatan: 'Middle 2', regu: 'Regu B' },
 ];
 
 const mapDepartment = (kategori, temuanText = '') => {
@@ -1378,7 +1380,7 @@ export default function App() {
   const isAdmin = ['Manajemen', 'SPV'].includes(currentUser?.jabatan);
   const isClient = currentUser?.jabatan === 'Guest Viewer';
   const isSuperAdmin = isGodMode;
-  const isPatrol = ['Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)'].includes(currentUser?.jabatan);
+  const isPatrol = ['Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)', 'Middle 1', 'Middle 2'].includes(currentUser?.jabatan);
 
   // Public complaint form — accessible without login via QR code or direct URL
   const isPublicComplaint = typeof window !== 'undefined' && window.location.search.includes('complaint');

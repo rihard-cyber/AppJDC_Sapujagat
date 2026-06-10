@@ -3,7 +3,7 @@ import { UserPlus, User, Shield, Smartphone, Hash, Users, Search, ChevronDown, C
 import { getWAContacts, saveWAContacts } from '../data/waContacts';
 
 const ROLE_OPTIONS = [
-  'Admin Super', 'Manajemen', 'SPV', 'Danru', 'Wadanru', 'Anggota', 'BKO', 'KH (Khusus)', 'Guest Viewer'
+  'Admin Super', 'Manajemen', 'SPV', 'Danru', 'Wadanru', 'Middle 1', 'Middle 2', 'Anggota', 'BKO', 'KH (Khusus)', 'Guest Viewer'
 ];
 
 const REGU_PRESETS = ['Regu A', 'Regu B', 'Regu C', 'Regu D'];
@@ -14,6 +14,8 @@ const ROLE_COLORS = {
   'SPV': '#f59e0b',
   'Danru': '#06b6d4',
   'Wadanru': '#14b8a6',
+  'Middle 1': '#10b981',
+  'Middle 2': '#06b6d4',
   'Anggota': '#10b981',
   'BKO': '#f97316',
   'KH (Khusus)': '#a855f7',
@@ -36,7 +38,7 @@ export default function UserManagement({ users, currentUser, onAddUser, onUpdate
   const allowedRoles = currentUser?.jabatan === 'Admin Super'
     ? ROLE_OPTIONS
     : ['Danru', 'Wadanru'].includes(currentUser?.jabatan || '')
-      ? ['Anggota', 'BKO', 'KH (Khusus)']
+      ? ['Anggota', 'BKO', 'KH (Khusus)', 'Middle 1', 'Middle 2']
       : ROLE_OPTIONS.filter(r => r !== 'Admin Super');
 
   const updateWAField = (dept, field, value) => {
