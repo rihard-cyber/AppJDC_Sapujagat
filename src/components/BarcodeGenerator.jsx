@@ -258,6 +258,58 @@ export default function BarcodeGenerator({
     }
   };
 
+  const handlePrintAllQRs = async () => {
+    if (areas.length === 0) {
+      if (addToast) addToast('Tidak ada checkpoint untuk dicetak', 'warning');
+      return;
+    }
+    if (addToast) addToast(`Menyiapkan cetak ${areas.length} QR...`, 'info');
+    try {
+      const allHtml = await Promise.all(areas.map(async (area) => {
+        const dataUrl = await generateQRDataURL(area.qrCode);
+        return `
+          <div class="qr-card">
+            <img src="${dataUrl}" alt="QR Checkpoint" />
+            <h2>${area.qrCode}</h2>
+            <p style="font-weight: bold; margin-bottom: 4px;">${area.titik}</p>
+            <p>${area.gedung} - Lantai ${area.lantai} (${area.zona})</p>
+          </div>
+          <div class="page-break"></div>
+        `;
+      }));
+      const printWin = window.open('', '_blank', 'width=500,height=700');
+      if (!printWin || printWin.closed || typeof printWin.closed === 'undefined') {
+        if (addToast) addToast('Izinkan popup untuk mencetak barcode', 'warning');
+        return;
+      }
+      printWin.document.write(`
+        <html>
+          <head>
+            <title>Cetak Semua QR Checkpoint</title>
+            <style>
+              body { font-family: 'Inter', sans-serif; margin: 0; padding: 20px; box-sizing: border-box; color: #0b0f19; }
+              .qr-card { border: 2px solid #ccc; padding: 15px; border-radius: 8px; display: inline-block; background: #fff; text-align: center; page-break-inside: avoid; margin: 0 auto; }
+              .page-break { page-break-after: always; height: 20px; }
+              img { width: 200px; height: 200px; margin-bottom: 10px; }
+              h2 { margin: 0 0 3px 0; font-size: 16px; letter-spacing: 1px; }
+              p { margin: 0; font-size: 11px; color: #555; }
+              @media print { body { -webkit-print-color-adjust: exact; } .page-break { page-break-after: always; height: 0; } }
+            </style>
+          </head>
+          <body>
+            ${allHtml.join('')}
+            <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">Total ${areas.length} QR Checkpoint</p>
+            <script>window.onload=function(){setTimeout(function(){window.print();},500)};<\/script>
+          </body>
+        </html>
+      `);
+      printWin.document.close();
+    } catch (err) {
+      console.error('Print all QR failed:', err);
+      if (addToast) addToast('Gagal mencetak QR', 'danger');
+    }
+  };
+
   const [downloadingId, setDownloadingId] = useState(null);
   const [printLoadingId, setPrintLoadingId] = useState(null);
   const [bulkCount, setBulkCount] = useState(100);
