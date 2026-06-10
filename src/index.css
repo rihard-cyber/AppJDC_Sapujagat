@@ -2358,6 +2358,15 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+@media (min-width: 1025px) {
+  .sidebar {
+    pointer-events: none;
+  }
+  .sidebar * {
+    pointer-events: auto;
+  }
+}
+
 @media (max-width: 480px) {
   .login-card {
     padding: 1.5rem 1.25rem;
