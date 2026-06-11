@@ -4003,17 +4003,29 @@ body.dashboard-active {
 /* Premium Android Mobile Header & Touch Target Refinements */
 @media (max-width: 768px) {
   /* Clean mobile header: show logo, brand name, and page title in two-row grid */
+
   .global-header {
     display: grid !important;
     grid-template-columns: auto 1fr auto !important;
     grid-template-rows: auto auto !important;
     align-items: center !important;
-    gap: 0.5rem 0.25rem !important;
-    padding: 0.65rem 0.5rem !important;
-    margin-bottom: 1rem !important;
-    border-bottom: 1px solid var(--border-glass) !important;
+    gap: 0.6rem 0.5rem !important;
+    padding: 1rem !important;
+    margin: 0 0 1.25rem 0 !important;
+    border: 1px solid var(--border-glass) !important;
+    border-radius: var(--border-radius-md) !important;
+    background: var(--bg-glass) !important;
+    backdrop-filter: blur(5px) !important;
+    -webkit-backdrop-filter: blur(5px) !important;
+    box-shadow: var(--shadow-premium) !important;
     justify-content: stretch !important;
-    flex-direction: row !important; /* overrides wrap fallback */
+    flex-direction: row !important;
+  }
+  
+  .theme-light .global-header {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
   }
   
   .global-header .menu-toggle-btn {
