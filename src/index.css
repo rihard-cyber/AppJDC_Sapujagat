@@ -5,9 +5,9 @@
 
 /* 1. KUNCI SCROLLBAR & HTML (Mencegah pergeseran konten antar-tab) */
 html {
-    scrollbar-gutter: stable !important; 
-    overflow-y: scroll !important; 
-    overflow-x: hidden !important;
+    scrollbar-gutter: stable;
+    overflow-x: hidden;
+    /* JANGAN paksa overflow-y: scroll di sini — membuat scroll terblokir di mobile */
 }
 
 body {
@@ -15,7 +15,9 @@ body {
     padding: 0;
     width: 100%;
     max-width: 100vw;
-    overflow-x: hidden !important; 
+    overflow-x: hidden;
+    /* overscroll agar tidak ada bounce/gap yang memblokir scroll */
+    overscroll-behavior-x: none;
     position: relative;
 }
 
@@ -3443,23 +3445,23 @@ h1, h2, h3, h4, h5, h6 {
    TOUCH TARGET FIXES — Android APK
    ═══════════════════════════════════════ */
 
-/* Minimum touch target for all interactive elements */
+/* Minimum touch target for all interactive elements.
+   Gunakan touch-action: manipulation (bukan none) agar tap bisa
+   tapi scroll tetap bisa naik ke parent */
 button, 
 a, 
 select,
 input[type="file"] + label,
 [role="button"],
-.clickable,
-[onclick],
-[onClick],
-.finding-checkbox,
-.finding-card,
-.finding-ticket {
+.clickable {
   touch-action: manipulation;
-  -ms-touch-action: manipulation;
 }
 
-/* Fix: glass-panel — ensure all children receive clicks */
+/* Scroll containers: beri izin swipe vertikal & horizontal */
+.finding-card,
+.finding-ticket {
+  touch-action: pan-y;
+}
 
 /* Interactive containers that must receive clicks directly */
 .finding-ticket,
@@ -3469,24 +3471,21 @@ input[type="file"] + label,
 .finding-checkbox,
 .finding-card {
   pointer-events: auto;
-  touch-action: manipulation;
 }
 
 /* ═══════════════════════════════════════
    PERFORMANCE OPTIMIZATIONS — Android WebView
    ═══════════════════════════════════════ */
 
-/* GPU acceleration for animated/transitioned elements */
+/* GPU acceleration HANYA untuk elemen animasi — JANGAN taruh button/a di sini
+   karena will-change: transform membuat stacking context baru yang memblok
+   propagasi scroll events ke parent */
 .glass-panel,
 .sidebar,
 .bottom-nav,
 .modal-panel,
 .finding-ticket,
-.panic-card,
-.table-wrap,
-button,
-a,
-[role="button"] {
+.panic-card {
   will-change: transform;
 }
 
