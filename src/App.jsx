@@ -154,15 +154,16 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
     if (!watermark) return;
 
     const isMobileInit = window.innerWidth <= 768;
-    const initialWidth = isMobileInit ? 240 : 320;
-    const initialHeight = isMobileInit ? 90 : 140;
+    const initialWidth = isMobileInit ? 260 : 340;
+    const initialHeight = isMobileInit ? 100 : 155;
 
     let posX = Math.random() * Math.max(10, window.innerWidth - initialWidth);
     let posY = Math.random() * Math.max(10, window.innerHeight - initialHeight);
     
-    // Smooth velocity in pixels per frame
-    let dx = (Math.random() > 0.5 ? 1 : -1) * 0.9;
-    let dy = (Math.random() > 0.5 ? 1 : -1) * 0.9;
+    // Slow down the running velocity: extremely gentle speed on mobile (0.35), standard on desktop (0.8)
+    const initialSpeed = isMobileInit ? 0.35 : 0.8;
+    let dx = (Math.random() > 0.5 ? 1 : -1) * initialSpeed;
+    let dy = (Math.random() > 0.5 ? 1 : -1) * initialSpeed;
 
     let animationFrameId;
 
@@ -171,8 +172,13 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
       const h = window.innerHeight;
       const isMobile = w <= 768;
 
-      const logoWidth = watermark.offsetWidth || (isMobile ? 240 : 320);
-      const logoHeight = watermark.offsetHeight || (isMobile ? 90 : 140);
+      // Ensure speed remains slow dynamically if size/orientation changes
+      const currentSpeed = isMobile ? 0.35 : 0.8;
+      dx = (dx < 0 ? -1 : 1) * currentSpeed;
+      dy = (dy < 0 ? -1 : 1) * currentSpeed;
+
+      const logoWidth = watermark.offsetWidth || (isMobile ? 260 : 340);
+      const logoHeight = watermark.offsetHeight || (isMobile ? 100 : 155);
 
       posX += dx;
       posY += dy;
@@ -252,8 +258,8 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
 
       const isDark = theme === 'dark';
       if (isOverlappingText) {
-        // On mobile, since overlaps are constant, use a higher opacity so it is readable, and do NOT blur
-        const minOpacity = isMobile ? (isDark ? '0.15' : '0.18') : (isDark ? '0.08' : '0.12');
+        // Brighten up the minimum opacity for higher visibility (0.35 on mobile, 0.22 on desktop)
+        const minOpacity = isMobile ? (isDark ? '0.35' : '0.40') : (isDark ? '0.22' : '0.26');
         watermark.style.opacity = minOpacity;
         watermark.style.filter = 'blur(0px)';
         watermark.style.textShadow = 'none';
@@ -262,20 +268,20 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
         watermark.style.background = 'transparent';
         watermark.style.backdropFilter = 'none';
       } else {
-        // High glow and brightness when in empty space
-        watermark.style.opacity = isDark ? '0.45' : '0.55';
+        // Boost empty-space opacity and glow for stunning visuals (0.75 on dark, 0.85 on light)
+        watermark.style.opacity = isDark ? '0.75' : '0.85';
         watermark.style.filter = 'blur(0px)';
         if (isDark) {
-          watermark.style.textShadow = '0 0 12px rgba(0, 240, 255, 0.9), 0 0 25px rgba(0, 240, 255, 0.5)';
-          watermark.style.boxShadow = 'inset 0 0 20px rgba(0, 240, 255, 0.2), 0 0 15px rgba(0, 240, 255, 0.1)';
-          watermark.style.border = '1px solid rgba(0, 240, 255, 0.25)';
-          watermark.style.background = 'rgba(15, 23, 42, 0.35)';
+          watermark.style.textShadow = '0 0 15px rgba(0, 255, 255, 1), 0 0 25px rgba(0, 255, 255, 0.7)';
+          watermark.style.boxShadow = 'inset 0 0 25px rgba(0, 255, 255, 0.35), 0 0 20px rgba(0, 255, 255, 0.15)';
+          watermark.style.border = '1px solid rgba(0, 255, 255, 0.45)';
+          watermark.style.background = 'rgba(15, 23, 42, 0.55)';
           watermark.style.backdropFilter = 'blur(6px)';
         } else {
-          watermark.style.textShadow = '0 0 8px rgba(79, 70, 229, 0.4)';
-          watermark.style.boxShadow = 'inset 0 0 15px rgba(79, 70, 229, 0.08), 0 0 10px rgba(79, 70, 229, 0.05)';
-          watermark.style.border = '1px solid rgba(79, 70, 229, 0.18)';
-          watermark.style.background = 'rgba(255, 255, 255, 0.45)';
+          watermark.style.textShadow = '0 0 10px rgba(79, 70, 229, 0.6)';
+          watermark.style.boxShadow = 'inset 0 0 20px rgba(79, 70, 229, 0.15), 0 0 15px rgba(79, 70, 229, 0.08)';
+          watermark.style.border = '1px solid rgba(79, 70, 229, 0.35)';
+          watermark.style.background = 'rgba(255, 255, 255, 0.65)';
           watermark.style.backdropFilter = 'blur(6px)';
         }
       }
@@ -287,8 +293,8 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
 
     const handleResize = () => {
       const isMobile = window.innerWidth <= 768;
-      const logoWidth = watermark.offsetWidth || (isMobile ? 240 : 320);
-      const logoHeight = watermark.offsetHeight || (isMobile ? 90 : 140);
+      const logoWidth = watermark.offsetWidth || (isMobile ? 260 : 340);
+      const logoHeight = watermark.offsetHeight || (isMobile ? 100 : 155);
       posX = Math.min(Math.max(0, posX), window.innerWidth - logoWidth);
       posY = Math.min(Math.max(0, posY), window.innerHeight - logoHeight);
     };
@@ -326,38 +332,40 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
           align-items: center;
           gap: 0.25rem;
           transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-          width: 320px;
+          width: 340px;
           padding: 1rem;
           border-radius: 12px;
           border: 1px solid transparent;
         }
         .ukiran-logo-text {
-          font-size: 1.15rem;
+          font-size: 1.3rem;
           font-weight: 900;
           letter-spacing: 0.18em;
-          color: #00f0ff;
-          text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+          color: #00ffff;
+          text-shadow: 0 0 12px rgba(0, 255, 255, 0.9), 0 0 20px rgba(0, 255, 255, 0.6);
         }
         .ukiran-sub-text {
-          font-size: 0.58rem;
+          font-size: 0.7rem;
           letter-spacing: 0.22em;
-          color: #a5b4fc;
+          color: #c7d2fe;
           font-weight: bold;
         }
         .ukiran-ornament-top, .ukiran-ornament-bottom {
-          font-size: 0.75rem;
-          color: #00f0ff;
+          font-size: 0.95rem;
+          color: #00ffff;
           letter-spacing: 0.1em;
-          opacity: 0.8;
+          opacity: 1.0;
+          font-weight: bold;
         }
         
         /* Light theme adjustments for high quality legibility */
         .theme-light .ukiran-logo-text {
-          color: #4f46e5;
-          text-shadow: none;
+          color: #312e81;
+          font-weight: 900;
+          text-shadow: 0 0 8px rgba(79, 70, 229, 0.3);
         }
         .theme-light .ukiran-sub-text {
-          color: #312e81;
+          color: #4338ca;
         }
         .theme-light .ukiran-ornament-top, .theme-light .ukiran-ornament-bottom {
           color: #4f46e5;
@@ -370,19 +378,19 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
 
         @media (max-width: 768px) {
           .ukiran-watermark {
-            width: 240px;
+            width: 260px;
             padding: 0.5rem;
           }
           .ukiran-logo-text {
-            font-size: 0.85rem;
+            font-size: 1.05rem;
             letter-spacing: 0.12em;
           }
           .ukiran-sub-text {
-            font-size: 0.48rem;
+            font-size: 0.58rem;
             letter-spacing: 0.12em;
           }
           .ukiran-ornament-top, .ukiran-ornament-bottom {
-            font-size: 0.55rem;
+            font-size: 0.75rem;
           }
         }
       `}</style>
