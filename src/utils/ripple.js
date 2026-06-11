@@ -20,7 +20,8 @@ export function initRipple() {
       transform: scale(0) !important;
       animation: ripple-anim 0.6s ease-out forwards !important;
       pointer-events: none !important;
-      will-change: transform, opacity !important;
+      /* HAPUS will-change: transform di sini — menciptakan stacking context
+         di dalam glass-panel yang mengabsorb scroll events */
       z-index: 1 !important;
     }
 
@@ -35,23 +36,18 @@ export function initRipple() {
       }
     }
 
+    /* HAPUS transform: translateY dari glass-panel hover!
+       transform membuat stacking context baru yang MEMBLOKIR SCROLL EVENTS.
+       Gunakan box-shadow + border saja untuk efek hover */
     .glass-panel:hover {
-      box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.45), 0 0 20px rgba(59,130,246,0.5);
-      transform: translateY(-2px);
-    }
-    .glass-panel:hover::before {
-      animation-duration: 1.5s;
-    }
-    .glass-panel:active {
-      transform: translateY(0px) scale(0.98);
+      box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.45), 0 0 20px rgba(59,130,246,0.35);
+      border-color: rgba(59, 130, 246, 0.3);
     }
 
     .press-effect {
-      transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+      transition: box-shadow 0.1s ease !important;
     }
-    .press-effect:active {
-      transform: scale(0.96) !important;
-    }
+    /* Hapus scale/transform dari press effect — sama alasannya */
 
     @keyframes spin {
       to { transform: rotate(360deg); }
