@@ -169,9 +169,6 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.45), 0 0 20px var(--color-primary-glow);
   transform: translateY(-2px);
 }
-.glass-panel:active {
-  transform: translateY(0px) scale(0.98);
-}
 
 /* Typography styles */
 .gradient-text {
@@ -2313,12 +2310,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @media (min-width: 1025px) {
-  .sidebar {
-    pointer-events: none;
-  }
-  .sidebar * {
-    pointer-events: auto;
-  }
 }
 
 @media (max-width: 480px) {
@@ -3469,12 +3460,6 @@ input[type="file"] + label,
 }
 
 /* Fix: glass-panel — ensure all children receive clicks */
-.glass-panel {
-  pointer-events: none;
-}
-.glass-panel * {
-  pointer-events: auto;
-}
 
 /* Interactive containers that must receive clicks directly */
 .finding-ticket,
@@ -3502,8 +3487,6 @@ input[type="file"] + label,
 button,
 a,
 [role="button"] {
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
   will-change: transform;
 }
 
@@ -3515,7 +3498,6 @@ a,
 .finding-card-content,
 [class*="scroll"] {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
 }
 
 /* Prevent text size adjust on orientation change */

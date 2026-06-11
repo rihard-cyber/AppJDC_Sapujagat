@@ -29,7 +29,7 @@ import { initSupabase,
   subscribeAreas, addAreaToFirestore, updateAreaInFirestore, deleteAreaFromFirestore,
   subscribePosList, addPosToFirestore, updatePosInFirestore, deletePosFromFirestore,
   subscribeWAContacts, saveWAContactsToFirestore,
-  clearAllPatrolDataInFirestore, deleteOldDataInFirestore } from './utils/supabase';
+  clearAllPatrolDataInFirestore, deleteOldDataInFirestore, uploadPhoto } from './utils/supabase';
 import { 
   LayoutDashboard, 
   QrCode, 
@@ -1024,13 +1024,30 @@ export default function App() {
 
         for (let i = 0; i < missing.length; i++) {
           if (cancelled) break;
-          const item = missing[i];
+          let item = { ...missing[i] };
           try {
+            // Intercept foto Base64 dan unggah ke Storage sebelum disync ke database Cloud
+            if (item.foto && item.foto.startsWith('data:image')) {
+              const folder = key.includes('reports') ? 'reports' : key.includes('findings') ? 'findings' : 'mutasi';
+              item.foto = await uploadPhoto(item.foto, `${folder}/${item.id}.jpg`);
+            }
+            if (item.photos && Array.isArray(item.photos)) {
+              const uploadedPhotos = [];
+              for (let p = 0; p < item.photos.length; p++) {
+                if (item.photos[p].startsWith('data:image')) {
+                  uploadedPhotos.push(await uploadPhoto(item.photos[p], `complaints/${item.id}_${p}.jpg`));
+                } else {
+                  uploadedPhotos.push(item.photos[p]);
+                }
+              }
+              item.photos = uploadedPhotos;
+            }
+
             const id = await adder(item);
             if (id) {
               const updater = (setter, field) => {
                 setter(prev => prev.map(x => x.id === item.id
-                  ? { ...x, [field]: id, firebaseId: id }
+                  ? { ...x, [field]: id, firebaseId: id, foto: item.foto, photos: item.photos }
                   : x
                 ));
               };
@@ -1043,7 +1060,7 @@ export default function App() {
 
               try {
                 const current = JSON.parse(localStorage.getItem(key) || '[]');
-                const synced = current.map(x => x.id === item.id ? { ...x, supabaseId: id, firebaseId: id } : x);
+                const synced = current.map(x => x.id === item.id ? { ...x, supabaseId: id, firebaseId: id, foto: item.foto, photos: item.photos } : x);
                 localStorage.setItem(key, JSON.stringify(synced));
               } catch (e) {}
             }
@@ -1172,25 +1189,20 @@ export default function App() {
     if (audio) setSosAudio(audio);
   };
 
-  const handleAddReport = (newReport) => {
+  const handleAddReport = async (newReport) => {
     const reportId = `rep-${Date.now()}-${Math.floor(Math.random() * 90000)}`;
-    const reportData = { id: reportId, ...newReport };
+    let reportData = { id: reportId, ...newReport };
+    
+    // Simpan ke state lokal terlebih dahulu untuk feedback UI instan (Offline-first approach)
     setReports(prev => [reportData, ...prev]);
     addToast(`Patroli sukses disubmit di ${newReport.titik} (${newReport.kondisi})`, 'success');
 
-    const reportProm = addReportToFirestore(reportData).then(fid => {
-      if (fid) {
-        setReports(prev => prev.map(r =>
-          r.id === reportId ? { ...r, supabaseId: fid, firebaseId: fid } : r
-        ));
-      }
-    });
-    reportProm.catch(e => addToast(`Gagal sync laporan: ${e.message}`, 'warning'));
-
+    let findingId = null;
+    let findingData = null;
     if (newReport.kondisi !== 'Aman dan Kondusif' && newReport.kondisi !== 'Ada Aktivitas' && newReport.kondisi !== 'Renovasi') {
-      const findingId = `find-${Math.floor(1000 + Math.random() * 9000)}`;
+      findingId = `find-${Math.floor(1000 + Math.random() * 9000)}`;
       const dept = mapDepartment(newReport.kondisi, newReport.keterangan || '');
-      const findingData = {
+      findingData = {
         id: findingId,
         reportId,
         kategori: newReport.kondisi,
@@ -1200,22 +1212,54 @@ export default function App() {
         status: 'Open',
         severity: newReport.severity || 'Rendah',
         detail: newReport.keterangan || `Ditemukan kondisi ${newReport.kondisi}`,
-        foto: newReport.foto,
+        foto: reportData.foto, // Base64 sementara hingga berhasil upload
         department: dept,
         waStatus: 'Belum Dikirim',
         waSentAt: null
       };
       setFindings(prev => [findingData, ...prev]);
-      addFindingToFirestore(findingData).then(fid => {
-        if (fid) {
-          setFindings(prev => prev.map(f =>
-            f.id === findingId ? { ...f, supabaseId: fid, firebaseId: fid } : f
-          ));
-        }
-      }).catch(e => addToast(`Gagal sync temuan: ${e.message}`, 'warning'));
       addToast(`⚠️ Tiket temuan otomatis dibuat untuk ${dept} [Severity: ${newReport.severity || 'Rendah'}]`, 'warning');
     }
-    return reportProm;
+
+    try {
+      // 1. Upload Foto ke Supabase Storage secara background
+      if (reportData.foto && reportData.foto.startsWith('data:image')) {
+        const photoUrl = await uploadPhoto(reportData.foto, `reports/${reportId}.jpg`);
+        reportData.foto = photoUrl;
+        if (findingData) findingData.foto = photoUrl;
+        
+        // Memperbarui state lokal agar data referensi gambar beralih dari Base64 ke Storage URL yang ringan
+        setReports(prev => prev.map(r => r.id === reportId ? { ...r, foto: photoUrl } : r));
+        if (findingData) {
+          setFindings(prev => prev.map(f => f.id === findingId ? { ...f, foto: photoUrl } : f));
+        }
+      }
+
+      // 2. Insert referensi Database
+      const reportProm = addReportToFirestore(reportData).then(fid => {
+        if (fid) {
+          setReports(prev => prev.map(r =>
+            r.id === reportId ? { ...r, supabaseId: fid, firebaseId: fid } : r
+          ));
+        }
+      });
+      reportProm.catch(e => addToast(`Gagal sync laporan: ${e.message}`, 'warning'));
+
+      if (findingData) {
+        addFindingToFirestore(findingData).then(fid => {
+          if (fid) {
+            setFindings(prev => prev.map(f =>
+              f.id === findingId ? { ...f, supabaseId: fid, firebaseId: fid } : f
+            ));
+          }
+        }).catch(e => addToast(`Gagal sync temuan: ${e.message}`, 'warning'));
+      }
+      
+      return reportProm;
+    } catch (err) {
+      console.warn('Gagal memproses upload:', err);
+      addToast(`Gagal proses foto: ${err.message}`, 'danger');
+    }
   };
 
   const handleDeleteReport = (id) => {
@@ -1313,20 +1357,31 @@ export default function App() {
     });
   };
 
-  const handleAddMutasi = (log) => {
+  const handleAddMutasi = async (log) => {
     const id = `mut-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const mutasiData = { id, ...log };
+    let mutasiData = { id, ...log };
     setMutasiLogs(prev => [mutasiData, ...prev]);
     addToast('Catatan mutasi berhasil disimpan', 'success');
-    const prom = addMutasiLogToFirestore(mutasiData).then(fid => {
-      if (fid) {
-        setMutasiLogs(prev => prev.map(m =>
-          m.id === id ? { ...m, supabaseId: fid, firebaseId: fid } : m
-        ));
+    
+    try {
+      if (mutasiData.foto && mutasiData.foto.startsWith('data:image')) {
+        const photoUrl = await uploadPhoto(mutasiData.foto, `mutasi/${id}.jpg`);
+        mutasiData.foto = photoUrl;
+        setMutasiLogs(prev => prev.map(m => m.id === id ? { ...m, foto: photoUrl } : m));
       }
-    });
-    prom.catch(e => addToast(`Gagal sync mutasi: ${e.message}`, 'warning'));
-    return prom;
+
+      const prom = addMutasiLogToFirestore(mutasiData).then(fid => {
+        if (fid) {
+          setMutasiLogs(prev => prev.map(m =>
+            m.id === id ? { ...m, supabaseId: fid, firebaseId: fid } : m
+          ));
+        }
+      });
+      prom.catch(e => addToast(`Gagal sync mutasi: ${e.message}`, 'warning'));
+      return prom;
+    } catch (err) {
+      addToast(`Gagal upload foto mutasi: ${err.message}`, 'danger');
+    }
   };
 
   const handleDeleteMutasi = (id) => {
@@ -1379,20 +1434,41 @@ export default function App() {
     });
   };
 
-  const handleAddComplaint = (complaint) => {
+  const handleAddComplaint = async (complaint) => {
+    let complaintData = { ...complaint };
     setComplaints(prev => {
-      const updated = [complaint, ...prev];
+      const updated = [complaintData, ...prev];
       try { localStorage.setItem('smpjdc_complaints', JSON.stringify(updated)); } catch (e) {}
       return updated;
     });
     addToast(`Komplain ${complaint.ticketId} berhasil dikirim!`, 'success');
-    addComplaintToFirestore(complaint).then(fid => {
-      if (fid) {
-        setComplaints(prev => prev.map(c =>
-          c.id === complaint.id ? { ...c, supabaseId: fid, firebaseId: fid } : c
-        ));
+    
+    try {
+      if (complaintData.photos && complaintData.photos.length > 0) {
+        const uploadedPhotos = [];
+        for (let i = 0; i < complaintData.photos.length; i++) {
+          const p = complaintData.photos[i];
+          if (p.startsWith('data:image')) {
+             const photoUrl = await uploadPhoto(p, `complaints/${complaintData.id}_${i}.jpg`);
+             uploadedPhotos.push(photoUrl);
+          } else {
+             uploadedPhotos.push(p);
+          }
+        }
+        complaintData.photos = uploadedPhotos;
+        setComplaints(prev => prev.map(c => c.id === complaintData.id ? { ...c, photos: uploadedPhotos } : c));
       }
-    }).catch(e => addToast(`Gagal sync komplain: ${e.message}`, 'warning'));
+
+      addComplaintToFirestore(complaintData).then(fid => {
+        if (fid) {
+          setComplaints(prev => prev.map(c =>
+            c.id === complaintData.id ? { ...c, supabaseId: fid, firebaseId: fid } : c
+          ));
+        }
+      }).catch(e => addToast(`Gagal sync komplain: ${e.message}`, 'warning'));
+    } catch (err) {
+      addToast(`Gagal upload foto komplain: ${err.message}`, 'danger');
+    }
   };
 
   const handleUpdateComplaint = (id, updates) => {
@@ -1661,17 +1737,23 @@ export default function App() {
     }
     
     try {
+      let finalAvatar = tempAvatar;
+      if (finalAvatar.startsWith('data:image')) {
+        addToast('Mengupload foto...', 'info');
+        finalAvatar = await uploadPhoto(finalAvatar, `avatars/${currentUser.id}.jpg`);
+      }
+      
       const updatedUsers = users.map(u =>
-        u.id === currentUser.id ? { ...u, avatar: tempAvatar } : u
+        u.id === currentUser.id ? { ...u, avatar: finalAvatar } : u
       );
       
       setUsers(updatedUsers);
-      setCurrentUser(prev => ({ ...prev, avatar: tempAvatar }));
+      setCurrentUser(prev => ({ ...prev, avatar: finalAvatar }));
       localStorage.setItem('sapujagat_users', JSON.stringify(updatedUsers));
       signUserData(updatedUsers);
       
       if (currentUser.supabaseId || currentUser.firebaseId) {
-        await updateUserInFirestore(currentUser.supabaseId || currentUser.firebaseId, { avatar: tempAvatar });
+        await updateUserInFirestore(currentUser.supabaseId || currentUser.firebaseId, { avatar: finalAvatar });
       }
       
       setProfileSuccess('Foto profil berhasil diperbarui!');
