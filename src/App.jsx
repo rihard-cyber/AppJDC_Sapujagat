@@ -54,7 +54,9 @@ import {
   Database,
   Camera,
   Lock,
-  Calendar
+  Calendar,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import ReportsExport from './components/ReportsExport';
 import TargetDashboard from './components/TargetDashboard';
@@ -2152,6 +2154,10 @@ export default function App() {
           </div>
 
           <div className="header-right">
+            <div className={`header-status-badge ${isOnline ? 'status-online' : 'status-offline'}`} title={isOnline ? 'Koneksi Terhubung' : 'Koneksi Terputus'}>
+              {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
+              <span>{isOnline ? 'Online' : 'Offline'}</span>
+            </div>
             <div className="header-user-badge">
               <Shield size={14} />
               <span>{currentUser.nama} ({jabatanShort[currentUser.jabatan] || currentUser.jabatan})</span>

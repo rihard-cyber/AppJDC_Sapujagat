@@ -3872,6 +3872,7 @@ body.dashboard-active {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  min-width: 0;
 }
 .header-brand-name {
   font-size: 0.72rem;
@@ -3890,6 +3891,56 @@ body.dashboard-active {
   letter-spacing: -0.01em;
 }
 
+/* Connection Status Badge */
+.header-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-family: var(--font-sans);
+  border: 1px solid var(--border-glass);
+  transition: all 0.3s ease;
+  user-select: none;
+}
+.header-status-badge.status-online {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.25);
+  color: var(--color-success);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
+}
+.header-status-badge.status-online svg {
+  color: var(--color-success) !important;
+}
+.header-status-badge.status-offline {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--color-danger);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+  animation: status-pulse-red 2s infinite ease-in-out;
+}
+.header-status-badge.status-offline svg {
+  color: var(--color-danger) !important;
+}
+
+@keyframes status-pulse-red {
+  0% {
+    opacity: 1;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    opacity: 0.75;
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.4);
+  }
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.2);
+  }
+}
+
 /* Premium Android Mobile Header & Touch Target Refinements */
 @media (max-width: 768px) {
   /* Clean mobile header: show logo, brand name, and page title */
@@ -3904,6 +3955,16 @@ body.dashboard-active {
     height: 32px !important;
   }
   .global-header .header-right {
+    display: flex !important;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    flex-shrink: 0;
+    width: auto !important;
+    border-top: none !important;
+    padding-top: 0 !important;
+  }
+  .global-header .header-user-badge {
     display: none !important;
   }
   .global-header .header-left {
@@ -3911,12 +3972,14 @@ body.dashboard-active {
     gap: 0.75rem !important;
     justify-content: flex-start;
     align-items: center;
-    width: 100%;
+    min-width: 0;
+    flex: 1;
   }
   .global-header .header-brand-text {
     text-align: left;
     width: auto;
     gap: 1px !important;
+    min-width: 0;
   }
   .global-header .header-brand-name {
     font-size: 0.65rem !important;
@@ -3928,6 +3991,7 @@ body.dashboard-active {
     margin: 0;
     line-height: 1.2;
     letter-spacing: -0.01em;
+    white-space: normal;
   }
   .global-header .header-desc {
     display: none !important;
@@ -3936,7 +4000,7 @@ body.dashboard-active {
     padding: 0.85rem 0.25rem !important;
     border-bottom: 1px solid var(--border-glass);
     margin-bottom: 1.25rem !important;
-    justify-content: flex-start !important;
+    justify-content: space-between !important;
     flex-direction: row !important;
     align-items: center !important;
   }
