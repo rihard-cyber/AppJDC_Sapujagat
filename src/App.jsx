@@ -153,8 +153,12 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
     const watermark = watermarkRef.current;
     if (!watermark) return;
 
-    let posX = Math.random() * (window.innerWidth - 320);
-    let posY = Math.random() * (window.innerHeight - 160);
+    const isMobileInit = window.innerWidth <= 768;
+    const initialWidth = isMobileInit ? 240 : 320;
+    const initialHeight = isMobileInit ? 90 : 140;
+
+    let posX = Math.random() * Math.max(10, window.innerWidth - initialWidth);
+    let posY = Math.random() * Math.max(10, window.innerHeight - initialHeight);
     
     // Smooth velocity in pixels per frame
     let dx = (Math.random() > 0.5 ? 1 : -1) * 0.9;
@@ -165,28 +169,29 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
     const updatePosition = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
+      const isMobile = w <= 768;
 
-      const logoWidth = watermark.offsetWidth || 300;
-      const logoHeight = watermark.offsetHeight || 140;
+      const logoWidth = watermark.offsetWidth || (isMobile ? 240 : 320);
+      const logoHeight = watermark.offsetHeight || (isMobile ? 90 : 140);
 
       posX += dx;
       posY += dy;
 
-      // Collision detection with screen boundaries
+      // Collision detection with screen boundaries (clamped cleanly to prevent leaving the screen)
       if (posX <= 0) {
         posX = 0;
-        dx = -dx;
+        dx = Math.abs(dx);
       } else if (posX + logoWidth >= w) {
-        posX = w - logoWidth;
-        dx = -dx;
+        posX = Math.max(0, w - logoWidth);
+        dx = -Math.abs(dx);
       }
 
       if (posY <= 0) {
         posY = 0;
-        dy = -dy;
+        dy = Math.abs(dy);
       } else if (posY + logoHeight >= h) {
-        posY = h - logoHeight;
-        dy = -dy;
+        posY = Math.max(0, h - logoHeight);
+        dy = -Math.abs(dy);
       }
 
       watermark.style.left = `${posX}px`;
@@ -215,20 +220,29 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
               'img', 'svg', 'option'
             ];
             
-            if (textTags.includes(tag)) {
-              isOverlappingText = true;
-              break;
+            let isTextElement = textTags.includes(tag);
+            
+            // If it's a structural element (like a div, section, article), only treat as text overlap
+            // if it has direct text node content or interactive classes (excluding purely structural/container grid classes)
+            if (!isTextElement && (tag === 'div' || tag === 'section' || tag === 'article')) {
+              const hasDirectText = Array.from(el.childNodes).some(
+                node => node.nodeType === 3 && node.textContent.trim().length > 0
+              );
+              
+              const className = typeof el.className === 'string' ? el.className.toLowerCase() : '';
+              // Detect actual interactive items, excluding general layout grids/cards/wrappers
+              const isInteractive = (className.includes('btn') || className.includes('input') || className.includes('badge') || className.includes('value')) && 
+                                    !className.includes('grid') && 
+                                    !className.includes('wrapper') && 
+                                    !className.includes('container') && 
+                                    !className.includes('card');
+              
+              if (hasDirectText || isInteractive) {
+                isTextElement = true;
+              }
             }
             
-            const className = typeof el.className === 'string' ? el.className.toLowerCase() : '';
-            if (
-              className.includes('btn') || 
-              className.includes('input') || 
-              className.includes('badge') || 
-              className.includes('logo') ||
-              className.includes('value') ||
-              className.includes('title')
-            ) {
+            if (isTextElement) {
               isOverlappingText = true;
               break;
             }
@@ -238,9 +252,10 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
 
       const isDark = theme === 'dark';
       if (isOverlappingText) {
-        // Blur and fade when hitting text
-        watermark.style.opacity = isDark ? '0.004' : '0.006';
-        watermark.style.filter = 'blur(7px)';
+        // On mobile, since overlaps are constant, use a higher opacity so it is readable, and do NOT blur
+        const minOpacity = isMobile ? (isDark ? '0.15' : '0.18') : (isDark ? '0.08' : '0.12');
+        watermark.style.opacity = minOpacity;
+        watermark.style.filter = 'blur(0px)';
         watermark.style.textShadow = 'none';
         watermark.style.boxShadow = 'none';
         watermark.style.border = '1px solid transparent';
@@ -248,19 +263,19 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
         watermark.style.backdropFilter = 'none';
       } else {
         // High glow and brightness when in empty space
-        watermark.style.opacity = isDark ? '0.35' : '0.45';
+        watermark.style.opacity = isDark ? '0.45' : '0.55';
         watermark.style.filter = 'blur(0px)';
         if (isDark) {
           watermark.style.textShadow = '0 0 12px rgba(0, 240, 255, 0.9), 0 0 25px rgba(0, 240, 255, 0.5)';
           watermark.style.boxShadow = 'inset 0 0 20px rgba(0, 240, 255, 0.2), 0 0 15px rgba(0, 240, 255, 0.1)';
-          watermark.style.border = '1px solid rgba(0, 240, 255, 0.2)';
-          watermark.style.background = 'rgba(15, 23, 42, 0.3)';
+          watermark.style.border = '1px solid rgba(0, 240, 255, 0.25)';
+          watermark.style.background = 'rgba(15, 23, 42, 0.35)';
           watermark.style.backdropFilter = 'blur(6px)';
         } else {
-          watermark.style.textShadow = '0 0 8px rgba(79, 70, 229, 0.5)';
+          watermark.style.textShadow = '0 0 8px rgba(79, 70, 229, 0.4)';
           watermark.style.boxShadow = 'inset 0 0 15px rgba(79, 70, 229, 0.08), 0 0 10px rgba(79, 70, 229, 0.05)';
-          watermark.style.border = '1px solid rgba(79, 70, 229, 0.15)';
-          watermark.style.background = 'rgba(255, 255, 255, 0.4)';
+          watermark.style.border = '1px solid rgba(79, 70, 229, 0.18)';
+          watermark.style.background = 'rgba(255, 255, 255, 0.45)';
           watermark.style.backdropFilter = 'blur(6px)';
         }
       }
@@ -271,8 +286,11 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
     updatePosition();
 
     const handleResize = () => {
-      posX = Math.min(posX, window.innerWidth - 300);
-      posY = Math.min(posY, window.innerHeight - 140);
+      const isMobile = window.innerWidth <= 768;
+      const logoWidth = watermark.offsetWidth || (isMobile ? 240 : 320);
+      const logoHeight = watermark.offsetHeight || (isMobile ? 90 : 140);
+      posX = Math.min(Math.max(0, posX), window.innerWidth - logoWidth);
+      posY = Math.min(Math.max(0, posY), window.innerHeight - logoHeight);
     };
     window.addEventListener('resize', handleResize);
 
