@@ -235,7 +235,6 @@ h1, h2, h3, h4, h5, h6 {
   transition: var(--transition-smooth);
   min-width: 0;
   overflow-x: hidden;
-  overflow-y: auto;
 }
 
 /* Mobile Simulator Framework (For security guards view) */

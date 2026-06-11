@@ -1772,6 +1772,11 @@ export default function App() {
     setIsSidebarOpen(false);
   };
 
+  useEffect(() => {
+    const el = document.getElementById('main-scroll-container');
+    if (el) { el.focus({ preventScroll: true }); window.scrollTo(0, 0); }
+  }, [currentTab]);
+
   const handleExitApp = () => {
     if (Capacitor.isNativePlatform()) {
       CapApp.exitApp();
@@ -2010,7 +2015,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="main-content">
+      <main className="main-content" tabIndex={-1} id="main-scroll-container">
         <header className="global-header">
           <div className="header-left">
             <div className="header-brand-row">
