@@ -88,15 +88,16 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
       ],
       columns: [
         { header: 'NO', width: '4%' },
-        { header: 'TANGGAL', width: '9%' },
-        { header: 'JAM LAPORAN', width: '8%' },
-        { header: 'JAM KEJADIAN', width: '8%' },
-        { header: 'PETUGAS', width: '10%' },
+        { header: 'TANGGAL', width: '8%' },
+        { header: 'JAM LAPORAN', width: '7%' },
+        { header: 'JAM KEJADIAN', width: '7%' },
+        { header: 'NAMA PETUGAS', width: '10%' },
         { header: 'NRP', width: '7%' },
-        { header: 'LOKASI/POS', width: '12%' },
-        { header: 'KATEGORI', width: '9%' },
-        { header: 'URAIAN LAPORAN / KEJADIAN / PERISTIWA', width: '24%' },
-        { header: 'FOTO', width: '9%' }
+        { header: 'LOKASI / POS', width: '10%' },
+        { header: 'KATEGORI', width: '8%' },
+        { header: 'URAIAN LAPORAN / KEJADIAN / PERISTIWA', width: '22%' },
+        { header: 'FOTO', width: '9%' },
+        { header: 'AKSI / TINDAK LANJUT', width: '8%' }
       ],
       rows: filtered.map((log, idx) => [
         idx + 1,
@@ -108,7 +109,8 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
         log.lokasi || '-',
         getKategoriLabel(log.kategori),
         { text: log.uraian || log.deskripsi || '-', className: 'text-left' },
-        { image: log.foto, text: log.foto ? 'Foto bukti' : '-' }
+        { image: log.foto, text: log.foto ? 'Foto bukti' : '-' },
+        log.tindakLanjut || '-'
       ])
     });
     if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
