@@ -2689,6 +2689,7 @@ export default function App() {
         onNavClick={handleNavClick}
         onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
         user={currentUser}
+        isSidebarOpen={isSidebarOpen}
       />
 
       {activeSOS && (

@@ -30,6 +30,7 @@ body {
 a, button, input, select, textarea, .nav-link, .menu-item, [role="button"] {
     outline: none !important;
     -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation !important;
 }
 
 a:focus-visible, button:focus-visible {
@@ -285,6 +286,7 @@ h1, h2, h3, h4, h5, h6 {
   /* Support overscroll bounce di iOS */
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  scroll-behavior: smooth !important;
 }
 
 /* Mobile Simulator Framework (For security guards view) */
@@ -791,6 +793,7 @@ h1, h2, h3, h4, h5, h6 {
     height: 100vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth !important;
   }
   .grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5 {
     grid-template-columns: 1fr;
@@ -834,6 +837,8 @@ h1, h2, h3, h4, h5, h6 {
     min-height: 100% !important;
     overflow-y: auto !important;
     padding: 1rem !important;
+    scroll-behavior: smooth !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
   .main-content {

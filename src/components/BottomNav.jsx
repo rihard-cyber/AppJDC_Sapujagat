@@ -10,16 +10,21 @@ import {
   Smartphone
 } from 'lucide-react';
 
-export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, user }) {
+export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, user, isSidebarOpen }) {
   const [visible, setVisible] = useState(true);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
     let ticking = false;
-    const handleScroll = () => {
+    const handleScroll = (e) => {
+      const target = e.target;
+      if (!target || (target.id !== 'main-scroll-container' && !target.classList?.contains('main-content'))) {
+        return;
+      }
+
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          const currentScrollY = window.scrollY;
+          const currentScrollY = target.scrollTop;
           const delta = currentScrollY - lastScrollY.current;
 
           if (Math.abs(delta) > 10) {
@@ -36,8 +41,8 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
       }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    return () => document.removeEventListener('scroll', handleScroll, { capture: true });
   }, []);
 
   const isGuard = ['Danru', 'Wadanru', 'Anggota'].includes(user?.jabatan);
@@ -77,9 +82,10 @@ export default function BottomNav({ currentTab, onNavClick, onToggleSidebar, use
   };
 
   const items = getItems();
+  const isNavVisible = visible && !isSidebarOpen;
 
   return (
-    <nav className={`bottom-nav ${visible ? '' : 'bottom-nav-hidden'}`}>
+    <nav className={`bottom-nav ${isNavVisible ? '' : 'bottom-nav-hidden'}`}>
       {items.map((item) => {
         if (item.isMenu) {
           return (
