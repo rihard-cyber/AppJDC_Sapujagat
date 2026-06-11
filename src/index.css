@@ -168,6 +168,9 @@ h1, h2, h3, h4, h5, h6 {
   transition: box-shadow 0.3s ease, border-color 0.3s ease;
   /* JANGAN pakai will-change: transform di sini!
      Menciptakan stacking context yang mengabsorb scroll events */
+  /* Izinkan scroll vertikal lewat glass-panel ke parent scroll container */
+  touch-action: pan-y;
+  overscroll-behavior: auto;
 }
 
 .glass-panel:hover {
@@ -3188,6 +3191,15 @@ h1, h2, h3, h4, h5, h6 {
 /* Table system */
 .table-wrap {
   overflow-x: auto;
+  /* KRITIS: izinkan scroll vertikal bubble ke parent (main-content)!
+     Tanpa ini, scroll vertikal di atas tabel HILANG karena table-wrap
+     menciptakan scroll context baru yang menelan wheel/touch events */
+  overflow-y: visible;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  /* Touch: izinkan geser vertikal (pan-y) melewati tabel ke parent */
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: auto;
 }
 .table-data {
   width: 100%;
