@@ -90,7 +90,6 @@ function handleRipple(e) {
   if (existing) existing.remove()
 
   target.style.position = target.style.position || 'relative'
-  target.style.overflow = target.style.overflow || 'hidden'
   target.appendChild(circle)
 
   setTimeout(() => circle.remove(), 600)
