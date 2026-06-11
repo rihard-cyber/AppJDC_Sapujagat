@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS areas (
   firebase_saved_at TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_areas_id ON areas(id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_areas_id ON areas(id);
 
 -- ── Pos List ─────────────────────────────────
 CREATE TABLE IF NOT EXISTS pos_list (

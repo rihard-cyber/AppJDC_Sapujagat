@@ -875,15 +875,18 @@ export default function App() {
     const unsub = subscribeAreas((firebaseData) => {
       if (!firebaseData) return;
       setAreas(prev => {
+        const fbMap = new Map(firebaseData.map(fb => [fb.id, fb]));
         const initialIds = new Set(INITIAL_AREAS.map(a => a.id));
-        const merged = [...INITIAL_AREAS];
-        const fbIds = new Set();
+        const merged = INITIAL_AREAS.map(a => {
+          const fbMatch = fbMap.get(a.id);
+          return fbMatch ? { ...a, firebaseId: fbMatch.firebaseId } : a;
+        });
         firebaseData.forEach(fb => {
           if (!initialIds.has(fb.id)) {
             merged.push(fb);
           }
-          fbIds.add(fb.id);
         });
+        const fbIds = new Set(firebaseData.map(fb => fb.id));
         prev.forEach(local => {
           if (!initialIds.has(local.id) && !fbIds.has(local.id)) {
             if (merged.length < 500) merged.push(local);

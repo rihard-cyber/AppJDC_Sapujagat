@@ -114,7 +114,7 @@ const createAdder = (tableName) => async (data) => {
   const dbData = prepareData(data, tableName);
   if (!dbData.created_at) dbData.created_at = new Date().toISOString();
   dbData.firebase_saved_at = new Date().toISOString();
-  const { data: result, error } = await client.from(tableName).insert(dbData).select().single();
+  const { data: result, error } = await client.from(tableName).upsert(dbData, { onConflict: 'id' }).select().single();
   if (error) throw error;
   return result.supabase_id;
 };
