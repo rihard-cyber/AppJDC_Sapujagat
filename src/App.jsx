@@ -16,10 +16,11 @@ import { executeBackHandlers } from './utils/navigation';
 import { hashPin, verifyPin, validateSession, signUserData, verifyUserDataSignature, signRoleInSession, verifyRoleInSession } from './utils/security';
 import { isSupabaseConfigured } from './utils/supabaseConfig';
 import { compressImage } from './utils/image';
-import { initSupabase, subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore,
-  subscribeReports, addReportToFirestore,
-  subscribeFindings, addFindingToFirestore, updateFindingInFirestore,
-  subscribeAttendanceLogs, addAttendanceLogToFirestore, updateAttendanceLogInFirestore,
+import { initSupabase,
+  subscribeComplaints, addComplaintToFirestore, updateComplaintInFirestore, deleteComplaintFromFirestore,
+  subscribeReports, addReportToFirestore, updateReportInFirestore, deleteReportFromFirestore,
+  subscribeFindings, addFindingToFirestore, updateFindingInFirestore, deleteFindingFromFirestore,
+  subscribeAttendanceLogs, addAttendanceLogToFirestore, updateAttendanceLogInFirestore, deleteAttendanceLogFromFirestore,
   subscribeMutasiLogs, addMutasiLogToFirestore, updateMutasiLogInFirestore, deleteMutasiLogFromFirestore,
   subscribeUsers, addUserToFirestore, updateUserInFirestore, deleteUserFromFirestore, resetUsersInFirestore,
   subscribeAreas, addAreaToFirestore, updateAreaInFirestore, deleteAreaFromFirestore,
@@ -1273,6 +1274,33 @@ export default function App() {
     return reportProm;
   };
 
+  const handleDeleteReport = (id) => {
+    const target = reports.find(r => r.id === id);
+    if (!target) return;
+    setConfirmDelete({
+      title: 'Hapus Laporan Patroli',
+      message: <>Yakin ingin menghapus laporan patroli di <strong>{target.titik}</strong> ({target.kondisi})?<br/>Tindakan ini tidak bisa dibatalkan.</>,
+      confirmLabel: 'Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDelete(null);
+        try {
+          const fid = target.supabaseId || target.firebaseId;
+          if (fid) await deleteReportFromFirestore(fid);
+          setReports(prev => {
+            const filtered = prev.filter(r => r.id !== id);
+            try { localStorage.setItem('sapujagat_reports', JSON.stringify(filtered)); } catch (e) {}
+            return filtered;
+          });
+          addToast('Laporan patroli berhasil dihapus!', 'success');
+        } catch (e) {
+          addToast(`Gagal hapus laporan: ${e.message}`, 'danger');
+        }
+      },
+      onCancel: () => setConfirmDelete(null),
+    });
+  };
+
   const updateFindingStatus = (findingId, newStatus) => {
     let updatedFinding = null;
     setFindings(prev => prev.map(f => {
@@ -1314,6 +1342,33 @@ export default function App() {
     }));
   };
 
+  const handleDeleteFinding = (id) => {
+    const target = findings.find(f => f.id === id);
+    if (!target) return;
+    setConfirmDelete({
+      title: 'Hapus Temuan',
+      message: <>Yakin ingin menghapus temuan <strong>{target.kategori}</strong> (#{String(target.id).slice(-6)})?<br/>Tindakan ini tidak bisa dibatalkan.</>,
+      confirmLabel: 'Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDelete(null);
+        try {
+          const fid = target.supabaseId || target.firebaseId;
+          if (fid) await deleteFindingFromFirestore(fid);
+          setFindings(prev => {
+            const filtered = prev.filter(f => f.id !== id);
+            try { localStorage.setItem('sapujagat_findings', JSON.stringify(filtered)); } catch (e) {}
+            return filtered;
+          });
+          addToast('Temuan berhasil dihapus!', 'success');
+        } catch (e) {
+          addToast(`Gagal hapus temuan: ${e.message}`, 'danger');
+        }
+      },
+      onCancel: () => setConfirmDelete(null),
+    });
+  };
+
   const handleAddMutasi = (log) => {
     const id = `mut-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const mutasiData = { id, ...log };
@@ -1347,6 +1402,33 @@ export default function App() {
           addToast('Catatan mutasi dihapus', 'info');
         } catch (e) {
           addToast(`Gagal hapus mutasi: ${e.message}`, 'danger');
+        }
+      },
+      onCancel: () => setConfirmDelete(null),
+    });
+  };
+
+  const handleDeleteAttendanceLog = (id) => {
+    const target = attendanceLogs.find(l => l.id === id);
+    if (!target) return;
+    setConfirmDelete({
+      title: 'Hapus Absensi',
+      message: <>Yakin ingin menghapus absensi <strong>{target.regu}</strong> tanggal {target.tanggal} (Shift {target.shift})?<br/>Tindakan ini tidak bisa dibatalkan.</>,
+      confirmLabel: 'Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDelete(null);
+        try {
+          const fid = target.supabaseId || target.firebaseId;
+          if (fid) await deleteAttendanceLogFromFirestore(fid);
+          setAttendanceLogs(prev => {
+            const filtered = prev.filter(l => l.id !== id);
+            try { localStorage.setItem('smpjdc_attendance_logs', JSON.stringify(filtered)); } catch (e) {}
+            return filtered;
+          });
+          addToast('Absensi berhasil dihapus!', 'success');
+        } catch (e) {
+          addToast(`Gagal hapus absensi: ${e.message}`, 'danger');
         }
       },
       onCancel: () => setConfirmDelete(null),
@@ -1393,7 +1475,34 @@ export default function App() {
       }).catch(e => addToast(`Gagal sync komplain: ${e.message}`, 'warning'));
     }
   };
-  
+
+  const handleDeleteComplaint = (id) => {
+    const target = complaints.find(c => c.id === id);
+    if (!target) return;
+    setConfirmDelete({
+      title: 'Hapus Komplain',
+      message: <>Yakin ingin menghapus komplain <strong>{target.ticketId}</strong> dari <strong>{target.name}</strong>?<br/>Tindakan ini tidak bisa dibatalkan.</>,
+      confirmLabel: 'Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmDelete(null);
+        try {
+          const fid = target.supabaseId || target.firebaseId;
+          if (fid) await deleteComplaintFromFirestore(fid);
+          setComplaints(prev => {
+            const filtered = prev.filter(c => c.id !== id);
+            try { localStorage.setItem('smpjdc_complaints', JSON.stringify(filtered)); } catch (e) {}
+            return filtered;
+          });
+          addToast('Komplain berhasil dihapus!', 'success');
+        } catch (e) {
+          addToast(`Gagal hapus komplain: ${e.message}`, 'danger');
+        }
+      },
+      onCancel: () => setConfirmDelete(null),
+    });
+  };
+
   const handleAddArea = (newArea) => {
     const areaId = newArea.qrCode.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const area = { id: areaId, ...newArea };
@@ -2018,6 +2127,8 @@ export default function App() {
               attendanceLogs={attendanceLogs} mutasiLogs={mutasiLogs} complaints={complaints}
               onUpdateStatus={updateFindingStatus} onDispatchFinding={dispatchFinding}
               onUpdateComplaint={handleUpdateComplaint}
+              onDeleteComplaint={handleDeleteComplaint}
+              onDeleteFinding={handleDeleteFinding}
               onArchiveOldData={handleArchiveOldData}
             />
             </Suspense>
@@ -2079,7 +2190,7 @@ export default function App() {
           )}
 
           {currentTab === 'reports' && (isGodMode || (isAdmin && !isClient) || ['Danru', 'Wadanru'].includes(currentUser?.jabatan)) && (
-            <ReportsExport reports={reports} findings={findings} users={users} onUpdateFindingStatus={updateFindingStatus} onDispatchFinding={dispatchFinding} />
+            <ReportsExport reports={reports} findings={findings} users={users} onUpdateFindingStatus={updateFindingStatus} onDispatchFinding={dispatchFinding} onDeleteReport={handleDeleteReport} />
           )}
 
           {currentTab === 'guard-simulator' && currentUser && (isGodMode || ['Danru', 'Wadanru', 'Anggota'].includes(currentUser.jabatan)) && (
@@ -2110,7 +2221,7 @@ export default function App() {
 
           {currentTab === 'complaint' && (isGodMode || (isAdmin && !isClient)) && (
             <Suspense fallback={<div className="loading-pulse" style={{padding:'2rem',textAlign:'center',color:'var(--text-muted)'}}>Memuat...</div>}>
-            <ComplaintAdmin complaints={complaints} onUpdateComplaint={handleUpdateComplaint} />
+            <ComplaintAdmin complaints={complaints} onUpdateComplaint={handleUpdateComplaint} onDeleteComplaint={handleDeleteComplaint} />
             </Suspense>
           )}
 

@@ -171,6 +171,7 @@ export const subscribeComplaints = (callback, opts = {}) =>
   createSubscriber('complaints', callback, 'created_at', opts);
 export const addComplaintToFirestore = createAdder('complaints');
 export const updateComplaintInFirestore = createUpdater('complaints');
+export const deleteComplaintFromFirestore = createDeleter('complaints');
 export const loadAllComplaintsFromFirestore = createLoader('complaints');
 
 // ─── Patrol Reports ───
@@ -185,12 +186,14 @@ export const subscribeFindings = (callback, opts = {}) =>
   createSubscriber('findings', callback, 'created_at', opts);
 export const addFindingToFirestore = createAdder('findings');
 export const updateFindingInFirestore = createUpdater('findings');
+export const deleteFindingFromFirestore = createDeleter('findings');
 
 // ─── Attendance Logs ───
 export const subscribeAttendanceLogs = (callback, opts = {}) =>
   createSubscriber('attendance_logs', callback, 'tanggal', opts);
 export const addAttendanceLogToFirestore = createAdder('attendance_logs');
 export const updateAttendanceLogInFirestore = createUpdater('attendance_logs');
+export const deleteAttendanceLogFromFirestore = createDeleter('attendance_logs');
 
 // ─── Mutasi Logs ───
 export const subscribeMutasiLogs = (callback, opts = {}) =>

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { buildWALink } from '../data/waContacts';
 
-export default function ReportsExport({ reports, findings, users, onUpdateFindingStatus, onDispatchFinding }) {
+export default function ReportsExport({ reports, findings, users, onUpdateFindingStatus, onDispatchFinding, onDeleteReport }) {
   const [selectedLog, setSelectedLog] = useState(null);
 
   useEffect(() => {
@@ -404,9 +404,16 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
               </div>
             </div>
 
-            <button onClick={() => setSelectedLog(null)} className="btn-primary" style={{ width: '100%' }}>
-              Tutup Rincian
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button onClick={() => setSelectedLog(null)} className="btn-primary" style={{ flex: 1 }}>
+                Tutup Rincian
+              </button>
+              {onDeleteReport && (
+                <button onClick={() => { const id = selectedLog.id; setSelectedLog(null); onDeleteReport(id); }} className="btn-danger" style={{ flex: '0 0 auto', padding: '0.65rem 1rem' }}>
+                  Hapus
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

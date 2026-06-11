@@ -52,6 +52,8 @@ export default function ManagementDashboard({
   onUpdateStatus, 
   onDispatchFinding, 
   onUpdateComplaint, 
+  onDeleteComplaint,
+  onDeleteFinding,
   onArchiveOldData 
 }) {
   const [graphFilter, setGraphFilter] = useState('hari');
@@ -1040,6 +1042,20 @@ export default function ManagementDashboard({
                             >
                               <MessageCircle size={13}/> {waAlreadySent ? 'Kirim Ulang WA' : `Kirim WA ke Ka. ${dept}`}
                             </button>
+                            {onDeleteFinding && !finding.isFromComplaint && (
+                              <button
+                                onClick={() => onDeleteFinding(finding.id)}
+                                style={{
+                                  padding: '0.25rem 0.5rem', fontSize: '0.68rem', borderRadius: '5px',
+                                  border: '1px solid rgba(239,68,68,0.3)',
+                                  background: 'rgba(239,68,68,0.08)',
+                                  color: '#ef4444', cursor: 'pointer', fontWeight: 600,
+                                  display: 'flex', alignItems: 'center', gap: '0.2rem'
+                                }}
+                              >
+                                Hapus
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1221,6 +1237,21 @@ export default function ManagementDashboard({
                                   );
                                 })}
                               </div>
+                            )}
+                            <div style={{ flex: 1 }}/>
+                            {onDeleteComplaint && (
+                              <button
+                                onClick={() => onDeleteComplaint(c.id)}
+                                style={{
+                                  padding: '0.25rem 0.5rem', fontSize: '0.68rem', borderRadius: '5px',
+                                  border: '1px solid rgba(239,68,68,0.3)',
+                                  background: 'rgba(239,68,68,0.08)',
+                                  color: '#ef4444', cursor: 'pointer', fontWeight: 600,
+                                  display: 'flex', alignItems: 'center', gap: '0.2rem'
+                                }}
+                              >
+                                Hapus Tiket
+                              </button>
                             )}
                           </div>
                         </div>

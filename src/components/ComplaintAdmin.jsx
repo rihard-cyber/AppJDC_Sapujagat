@@ -5,7 +5,7 @@ const DEPARTMENTS = ['Teknisi', 'Cleaning', 'Keamanan'];
 
 const STATUS_OPTIONS = ['Baru', 'Diterima', 'Diproses', 'Selesai'];
 
-export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
+export default function ComplaintAdmin({ complaints, onUpdateComplaint, onDeleteComplaint }) {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [detail, setDetail] = useState(null);
@@ -283,6 +283,19 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint }) {
                             }}><Send size={12} /> {d}</button>
                           ))}
                         </div>
+                      </div>
+                    )}
+                    {onDeleteComplaint && (
+                      <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-glass)', paddingTop: '0.5rem' }}>
+                        <button onClick={(e) => { e.stopPropagation(); onDeleteComplaint(c.id); }} style={{
+                          padding: '0.35rem 0.65rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 700,
+                          border: '1.5px solid rgba(239,68,68,0.3)',
+                          background: 'rgba(239,68,68,0.08)',
+                          color: '#ef4444', cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                          display: 'flex', alignItems: 'center', gap: '0.25rem'
+                        }}>
+                          Hapus Tiket Komplain
+                        </button>
                       </div>
                     )}
                   </div>
