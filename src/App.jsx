@@ -325,7 +325,7 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
           height: 100vh;
           overflow: hidden;
           pointer-events: none;
-          z-index: 2; /* Floats over cards backgrounds */
+          z-index: 0; /* Placed behind the main cards/content */
           user-select: none;
         }
         .ukiran-watermark {
