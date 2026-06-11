@@ -189,7 +189,6 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  animation: ga 4s linear infinite;
   pointer-events: none;
   z-index: -1;
 }
@@ -197,9 +196,6 @@ h1, h2, h3, h4, h5, h6 {
 .glass-panel:hover {
   box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.45), 0 0 20px var(--color-primary-glow);
   transform: translateY(-2px);
-}
-.glass-panel:hover::before {
-  animation-duration: 1.5s;
 }
 .glass-panel:active {
   transform: translateY(0px) scale(0.98);
@@ -978,9 +974,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 .theme-light .glass-panel:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-}
-.theme-light .glass-panel:hover::before {
-  animation-duration: 1.5s;
 }
 
 /* ── Sidebar ── */
@@ -3533,19 +3526,28 @@ input[type="file"] + label,
   -ms-touch-action: manipulation;
 }
 
-/* Ensure glass-panel::before doesn't block clicks on Android */
+/* Fix: glass-panel layered pseudo-element blocking clicks on Chrome/WebView */
+.glass-panel {
+  pointer-events: none;
+}
+.glass-panel > * {
+  pointer-events: auto;
+}
 .glass-panel::before {
   pointer-events: none !important;
 }
 
-/* Fix for buttons inside glass-panel on Android WebView */
+/* Ensure interactive children of glass-panel receive clicks */
 .glass-panel button,
 .glass-panel a,
 .glass-panel select,
 .glass-panel input,
-.glass-panel textarea {
+.glass-panel textarea,
+.glass-panel [role="button"],
+.glass-panel .clickable {
   position: relative;
   z-index: 2;
+  pointer-events: auto;
 }
 
 /* Danger icon button */
