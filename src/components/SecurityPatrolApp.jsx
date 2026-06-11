@@ -404,6 +404,7 @@ export default function SecurityPatrolApp({
   const [mFoto, setMFoto] = useState(null);
   const [mErrors, setMErrors] = useState({});
   const [mSent, setMSent] = useState(false);
+  const [mJamKejadian, setMJamKejadian] = useState(() => new Date().toTimeString().slice(0, 5));
 
   // ── Tab: Temuan (Standalone) ──
   const [tLokasi, setTLokasi] = useState('');
@@ -413,12 +414,18 @@ export default function SecurityPatrolApp({
   const [tDeskripsi, setTDeskripsi] = useState('');
   const [tFoto, setTFoto] = useState(null);
   const [tSent, setTSent] = useState(false);
+  const [tWaktu, setTWaktu] = useState(() => new Date().toTimeString().slice(0, 5));
 
   const handleTemuanStandaloneSubmit = async (e) => {
     e.preventDefault();
     if (!tLokasi || !tKategori || !tTemuan) return;
     const fraudData = await generateAntiFraudData(currentUser.id);
     const selectedArea = areas.find(a => tLokasi.includes(a.titik));
+    const reportDate = new Date();
+    if (tWaktu) {
+      const [h, m] = tWaktu.split(':');
+      reportDate.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+    }
     const reportData = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       areaId: selectedArea?.id || 'manual',
@@ -434,9 +441,9 @@ export default function SecurityPatrolApp({
       keterangan: tDeskripsi,
       severity: colorSeverity(tSeverity).replace('#','') === '10b981' ? 'Rendah' : tSeverity === 'medium' ? 'Sedang' : tSeverity === 'high' ? 'Tinggi' : 'Kritis',
       foto: tFoto,
-      timestamp: new Date().toISOString(),
-      date: new Date().toISOString().split('T')[0],
-      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      timestamp: reportDate.toISOString(),
+      date: reportDate.toISOString().split('T')[0],
+      time: tWaktu,
       shift: shift,
       antiFraud: fraudData,
       jabatan: currentUser.jabatan,
@@ -449,23 +456,23 @@ export default function SecurityPatrolApp({
     }
     setTSent(true);
     setTKategori(''); setTTemuan(''); setTSeverity('low'); setTDeskripsi(''); setTFoto(null); setTLokasi('');
+    setTWaktu(new Date().toTimeString().slice(0, 5));
     setTimeout(() => setTSent(false), 3000);
   };
 
   const handleMutasiSubmit = async (e) => {
     e.preventDefault();
-    const errs = {};
-    if (!mLokasi.trim()) errs.lokasi = 'Lokasi harus diisi';
-    if (!mUraian.trim()) errs.uraian = 'Uraian harus diisi';
-    if (Object.keys(errs).length) { setMErrors(errs); return; }
-    setMErrors({});
-    
+    if (!mLokasi.trim()) { setMErrors(p => ({ ...p, lokasi: 'Lokasi wajib diisi!' })); return; }
+    if (!mUraian.trim()) { setMErrors(p => ({ ...p, uraian: 'Uraian wajib diisi!' })); return; }
     const fraudData = await generateAntiFraudData(currentUser.id);
     const mutasiData = {
-      waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      jamKejadian: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      lokasi: mLokasi.trim(), uraian: mUraian.trim(),
-      kategori: mKat === '__lainnya__' ? `Lainnya: ${mKatLainnya.trim() || 'Custom'}` : mKat,
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      waktu: mJamKejadian,
+      tanggalKejadian: todayStr,
+      jamKejadian: mJamKejadian,
+      lokasi: mLokasi,
+      uraian: mUraian,
+      kategori: mKat === '__lainnya__' ? `Lainnya: ${mKatLainnya}` : mKat,
       foto: mFoto, petugas: currentUser.nama, nrp: currentUser.nrp,
       tanggal: todayStr, pelapor: currentUser.nama,
       antiFraud: fraudData
@@ -477,6 +484,7 @@ export default function SecurityPatrolApp({
     }
     setMSent(true);
     setMLokasi(''); setMUraian(''); setMFoto(null); setMKat('informasi'); setMKatLainnya('');
+    setMJamKejadian(new Date().toTimeString().slice(0, 5));
     setTimeout(() => setMSent(false), 3000);
   };
 
@@ -746,7 +754,27 @@ export default function SecurityPatrolApp({
                   <p className="form-label">CHECKPOINT TERSCAN</p>
                   <h4 className="form-location-name">{area.titik}</h4>
                   <p className="text-secondary form-location-detail">{area.gedung} | {['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'].includes(area.lantai) ? `Lantai ${area.lantai}` : area.lantai} | Zona: {area.zona}</p>
-                  {timeScan && <div className="form-scan-time"><Clock size={12} /><span>{timeScan.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'})} WIB</span></div>}
+                  {timeScan && (
+                    <div className="form-scan-time" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.6rem' }}>
+                      <label style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <Clock size={12} /> JAM SCAN / PATROLI
+                      </label>
+                      <input 
+                        type="time" 
+                        value={timeScan ? timeScan.toTimeString().slice(0, 5) : ''} 
+                        onChange={(e) => {
+                          if (!e.target.value) return;
+                          const [hours, minutes] = e.target.value.split(':');
+                          const newDate = new Date(timeScan || new Date());
+                          newDate.setHours(parseInt(hours, 10));
+                          newDate.setMinutes(parseInt(minutes, 10));
+                          setTimeScan(newDate);
+                        }} 
+                        className="modern-input" 
+                        style={{ height: '36px', fontSize: '0.82rem', padding: '0 0.6rem', fontFamily: 'var(--font-mono)' }} 
+                      />
+                    </div>
+                  )}
                 </div>
                 <p className="decision-label">PILIH STATUS AREA:</p>
                 <button onClick={handleNormal} className="decision-btn decision-normal">
@@ -886,6 +914,11 @@ export default function SecurityPatrolApp({
                   </div>
 
                   <div className="step-field">
+                    <label><Clock size={12} /> WAKTU TEMUAN / KEJADIAN</label>
+                    <input type="time" value={tWaktu} onChange={e => setTWaktu(e.target.value)} className="modern-input" required />
+                  </div>
+
+                  <div className="step-field">
                     <label>KATEGORI</label>
                     <select value={tKategori} onChange={e => setTKategori(e.target.value)} className="modern-select" required>
                       <option value="">-- Pilih --</option>
@@ -1013,6 +1046,11 @@ export default function SecurityPatrolApp({
                     <input type="text" value={mLokasi} onChange={e => { setMLokasi(e.target.value); setMErrors(p => ({ ...p, lokasi: '' })); }}
                       placeholder="Contoh: Lobby Utama / Lt.3" className="modern-input" style={{ fontSize: '0.8rem' }} />
                     {mErrors.lokasi && <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)' }}>{mErrors.lokasi}</span>}
+                  </div>
+
+                  <div className="step-field">
+                    <label><Clock size={12} /> JAM KEJADIAN</label>
+                    <input type="time" value={mJamKejadian} onChange={e => setMJamKejadian(e.target.value)} className="modern-input" required />
                   </div>
 
                   <div className="step-field">
