@@ -21,11 +21,9 @@ const FLOOR_OPTIONS = [
   { value: 'Halaman Samping Kanan', label: 'Halaman Samping Kanan' },
   { value: 'Halaman Samping Kiri', label: 'Halaman Samping Kiri' },
   { value: 'Halaman Belakang', label: 'Halaman Belakang' },
-  { value: 'Pos 00', label: 'Pos 00' },
-  { value: 'R. Teknik', label: 'R. Teknik' },
 ];
 
-const ZONE_OPTIONS = ['A', 'B', 'C', 'D'];
+const ZONE_OPTIONS = ['A', 'B', 'C', 'D', 'Lobby', 'Halaman Depan', 'Halaman Belakang', 'Posco Security', 'Petugas Teknik', 'Lapangan Padel', 'Area Padel'];
 
 const FLOOR_OPTIONS_POS = [
   { value: 'Basement', label: 'Basement' },
@@ -45,8 +43,6 @@ const QR_LOCATION_CODES = {
   'Halaman Samping Kanan': 'HSKN',
   'Halaman Samping Kiri': 'HSKR',
   'Halaman Belakang': 'HB',
-  'Pos 00': 'POS',
-  'R. Teknik': 'RTEK'
 };
 
 const REGU_OPTIONS = ['Regu A', 'Regu B', 'Regu C', 'Regu D'];

@@ -1359,7 +1359,7 @@ export default function ManagementDashboard({
                   <MapPin size={16} className="text-primary"/> Denah & Heatmap Kunjungan Patroli Gedung
                 </h4>
                 <div style={{ display: 'flex', background: 'var(--bg-primary)', padding: '0.25rem', borderRadius: '8px', overflowX: 'auto', maxWidth: '100%', gap: '2px', whiteSpace: 'nowrap' }}>
-                  {['Basement','1','2','3','4','5','6','Halaman Depan','Halaman Samping Kanan','Pos 00','R. Teknik','Halaman Belakang','Halaman Samping Kiri'].map(floor => (
+                  {['Basement','1','2','3','4','5','6','Halaman Depan','Halaman Samping Kanan','Halaman Belakang','Halaman Samping Kiri'].map(floor => (
                     <button key={floor} onClick={() => setSelectedFloor(floor)} style={{
                       border: 'none', background: selectedFloor === floor ? 'var(--bg-tertiary)' : 'transparent',
                       color: selectedFloor === floor ? 'var(--color-primary)' : 'var(--text-secondary)',

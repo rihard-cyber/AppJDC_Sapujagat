@@ -24,7 +24,7 @@ const CATEGORIES = [
 
 const FLOORS = [
   'Basement', 'Lt.1', 'Lt.2', 'Lt.3', 'Lt.4', 'Lt.5', 'Lt.6',
-  'Halaman Depan', 'Halaman Belakang', 'Pos 00', 'R. Teknik', 'Lainnya'
+  'Halaman Depan', 'Halaman Belakang', 'Halaman Samping Kanan', 'Halaman Samping Kiri', 'Lainnya'
 ];
 
 export default function ComplaintForm({ onAddComplaint }) {

@@ -135,7 +135,7 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
             </h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {['Basement', '1', '2', '3', '4', '5', '6', 'Halaman Depan', 'Halaman Samping Kanan', 'Pos 00', 'R. Teknik', 'Halaman Belakang', 'Halaman Samping Kiri'].map(floorKey => {
+              {['Basement', '1', '2', '3', '4', '5', '6', 'Halaman Depan', 'Halaman Samping Kanan', 'Halaman Belakang', 'Halaman Samping Kiri'].map(floorKey => {
                 const floorAreas = areas.filter(a => a.lantai === floorKey);
                 if (floorAreas.length === 0) return null;
 
@@ -148,10 +148,8 @@ export default function TargetDashboard({ reports, findings, areas, currentUser,
                   '5': { name: 'Lantai 5', target: '2 kali scan per shift' },
                   '6': { name: 'Lantai 6', target: '2 kali scan per shift' },
                   'Halaman Depan': { name: 'Halaman Depan', target: '5 kali scan per shift' },
-                  'Halaman Samping Kanan': { name: 'Halaman Samping Kanan', target: '1 kali scan per shift' },
-                  'Pos 00': { name: 'Pos 00', target: '1 kali scan per shift' },
-                  'R. Teknik': { name: 'R. Teknik', target: '1 kali scan per shift' },
-                  'Halaman Belakang': { name: 'Halaman Belakang', target: '3 kali scan per shift' },
+                  'Halaman Samping Kanan': { name: 'Halaman Samping Kanan', target: '2 kali scan per shift' },
+                  'Halaman Belakang': { name: 'Halaman Belakang', target: '4 kali scan per shift' },
                   'Halaman Samping Kiri': { name: 'Halaman Samping Kiri', target: '1 kali scan per shift' }
                 };
 
