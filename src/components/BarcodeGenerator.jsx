@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 
 import QRCode from 'qrcode';
+import { exportTableToPdf, formatDateForFile } from '../utils/exportPdf';
 
 const FLOOR_OPTIONS = [
   { value: 'Basement', label: 'Basement' },
@@ -441,6 +442,78 @@ export default function BarcodeGenerator({
     );
   }, [posList, searchPos]);
 
+  const getSortedAreas = (items) => [...items].sort((a, b) => {
+    const na = parseInt(a.nomorTitik, 10);
+    const nb = parseInt(b.nomorTitik, 10);
+    if (isNaN(na) && isNaN(nb)) return (a.nomorTitik || '').localeCompare(b.nomorTitik || '');
+    if (isNaN(na)) return 1;
+    if (isNaN(nb)) return -1;
+    return na - nb;
+  });
+
+  const handleExportCheckpointPDF = () => {
+    const rows = getSortedAreas(filteredAreas);
+    const ok = exportTableToPdf({
+      title: 'Master Checkpoint Barcode Patroli',
+      fileName: `master-checkpoint-barcode-smpjdc-${formatDateForFile()}`,
+      meta: [
+        { label: 'Pencarian', value: searchArea || '-' },
+        { label: 'Total Checkpoint', value: rows.length },
+        { label: 'Sumber', value: 'Barcode Generator' },
+        { label: 'Gedung', value: 'Jakarta Design Center' }
+      ],
+      columns: [
+        { header: 'NO', width: '5%' },
+        { header: 'QR CODE', width: '15%' },
+        { header: 'GEDUNG', width: '18%' },
+        { header: 'LANTAI', width: '12%' },
+        { header: 'ZONA', width: '8%' },
+        { header: 'NO. TITIK', width: '9%' },
+        { header: 'LOKASI / TITIK PATROLI', width: '25%' },
+        { header: 'KETERANGAN', width: '12%' }
+      ],
+      rows: rows.map((area, idx) => [
+        idx + 1,
+        { text: area.qrCode || '-', className: 'mono' },
+        area.gedung || 'SMPJDC - Jakarta Design Center',
+        ['1','2','3','4','5','6'].includes(area.lantai) ? `Lantai ${area.lantai}` : (area.lantai || '-'),
+        area.zona || '-',
+        area.nomorTitik || '-',
+        { text: area.titik || '-', className: 'text-left' },
+        area.keterangan || '-'
+      ])
+    });
+    if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
+  };
+
+  const handleExportPosPDF = () => {
+    const ok = exportTableToPdf({
+      title: 'Master Pos Jaga Penjagaan',
+      fileName: `master-pos-jaga-smpjdc-${formatDateForFile()}`,
+      meta: [
+        { label: 'Pencarian', value: searchPos || '-' },
+        { label: 'Total Pos', value: filteredPosList.length },
+        { label: 'Sumber', value: 'Barcode Generator' },
+        { label: 'Gedung', value: 'Jakarta Design Center' }
+      ],
+      columns: [
+        { header: 'NO', width: '6%' },
+        { header: 'NAMA POS', width: '28%' },
+        { header: 'LANTAI / AREA', width: '20%' },
+        { header: 'KODE POS', width: '14%' },
+        { header: 'KETERANGAN', width: '32%' }
+      ],
+      rows: filteredPosList.map((pos, idx) => [
+        idx + 1,
+        { text: pos.titik || '-', className: 'text-left' },
+        pos.lantai || '-',
+        { text: pos.kode || '-', className: 'mono' },
+        { text: pos.keterangan || '-', className: 'text-left' }
+      ])
+    });
+    if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
@@ -568,6 +641,10 @@ export default function BarcodeGenerator({
                   style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto', minHeight: '44px', touchAction: 'manipulation' }} data-no-ripple>
                   <Printer size={14} /> Cetak Semua QR
                 </button>
+                <button type="button" onClick={handleExportCheckpointPDF} className="btn-secondary"
+                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto', minHeight: '44px', touchAction: 'manipulation' }} data-no-ripple>
+                  <Download size={14} /> Export Tabel PDF
+                </button>
               </div>
             </div>
 
@@ -582,14 +659,7 @@ export default function BarcodeGenerator({
                 <tbody>
                   {filteredAreas.length === 0 ? (
                     <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{searchArea ? 'Tidak ditemukan' : 'Belum ada area terdaftar'}</td></tr>
-                  ) : ([...filteredAreas].sort((a, b) => {
-                    const na = parseInt(a.nomorTitik, 10);
-                    const nb = parseInt(b.nomorTitik, 10);
-                    if (isNaN(na) && isNaN(nb)) return a.nomorTitik?.localeCompare(b.nomorTitik || '');
-                    if (isNaN(na)) return 1;
-                    if (isNaN(nb)) return -1;
-                    return na - nb;
-                  }).map((area, idx) => (
+                  ) : (getSortedAreas(filteredAreas).map((area, idx) => (
                     <tr key={area.id} className={idx % 2 === 0 ? 'row-even' : ''}>
                       <td>{['1','2','3','4','5','6'].includes(area.lantai) ? `Lantai ${area.lantai}` : area.lantai}</td>
                       <td className="td-mono td-label">{area.nomorTitik || '-'}</td>
@@ -742,9 +812,15 @@ export default function BarcodeGenerator({
                 <Shield size={18} className="text-primary" style={{ flexShrink: 0 }} />
                 <span>Daftar Pos Jaga ({posList.length})</span>
               </h3>
-              <div style={{ position: 'relative', minWidth: '140px' }}>
-                <input type="text" value={searchPos} onChange={e => setSearchPos(e.target.value)}
-                  placeholder="Cari pos..." className="form-input" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', minHeight: '44px' }} />
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div style={{ position: 'relative', minWidth: '140px' }}>
+                  <input type="text" value={searchPos} onChange={e => setSearchPos(e.target.value)}
+                    placeholder="Cari pos..." className="form-input" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', minHeight: '44px' }} />
+                </div>
+                <button type="button" onClick={handleExportPosPDF} className="btn-secondary"
+                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', width: 'auto', minHeight: '44px', touchAction: 'manipulation' }} data-no-ripple>
+                  <Download size={14} /> Export PDF
+                </button>
               </div>
             </div>
 

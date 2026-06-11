@@ -48,7 +48,7 @@ const KNOWN_TABLE_COLUMNS = {
   findings: new Set(['id', 'report_id', 'kategori', 'area', 'tanggal', 'pelapor', 'status', 'severity', 'detail', 'foto', 'department', 'wa_status', 'wa_sent_at', 'created_at', 'firebase_saved_at']),
   attendance_logs: new Set(['id', 'tanggal', 'shift', 'regu', 'details', 'created_at', 'firebase_saved_at']),
   mutasi_logs: new Set(['id', 'tanggal', 'shift', 'petugas_masuk', 'petugas_keluar', 'catatan', 'foto', 'created_at', 'firebase_saved_at']),
-  complaints: new Set(['id', 'ticket_id', 'name', 'tenant', 'floor', 'category', 'description', 'department', 'status', 'wa_status', 'wa_sent_at', 'photos', 'history', 'created_at', 'firebase_saved_at', 'updated_at']),
+  complaints: new Set(['id', 'ticket_id', 'name', 'phone', 'tenant', 'floor', 'location', 'category', 'description', 'department', 'status', 'remarks', 'wa_status', 'wa_sent_at', 'photos', 'history', 'created_at', 'firebase_saved_at', 'updated_at']),
   areas: new Set(['id', 'gedung', 'lantai', 'nomor_titik', 'zona', 'titik', 'qr_code', 'created_at', 'firebase_saved_at']),
   pos_list: new Set(['id', 'lantai', 'titik', 'keterangan', 'kode', 'created_at', 'firebase_saved_at']),
   rosters: new Set(['year_month', 'roster_data', 'updated_by', 'created_at', 'updated_at']),

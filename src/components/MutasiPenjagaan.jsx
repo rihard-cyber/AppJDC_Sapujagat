@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { registerBackHandler } from '../utils/navigation';
 import { Clock, MapPin, FileText, Camera, Send, History, Trash2, Info, Search, AlertTriangle, Wrench, Radio, X, Printer } from 'lucide-react';
 import { compressImage } from '../utils/image';
+import { exportTableToPdf, formatDateForFile, formatDateOnlyId } from '../utils/exportPdf';
 
 const KATEGORI_MUTASI = [
   { id: 'informasi', label: 'Informasi', icon: Info, color: '#3b82f6' },
@@ -69,6 +70,49 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
     const matchKat = !filterKat || l.kategori === filterKat;
     return matchSearch && matchKat;
   });
+
+  const getKategoriLabel = (value) => {
+    const found = KATEGORI_MUTASI.find(k => k.id === value);
+    return found?.label || value || '-';
+  };
+
+  const handleExportMutasiPDF = () => {
+    const ok = exportTableToPdf({
+      title: 'Mutasi / Pelaporan Kejadian Penjagaan',
+      fileName: `mutasi-pelaporan-smpjdc-${formatDateForFile()}`,
+      meta: [
+        { label: 'Filter Kategori', value: filterKat ? getKategoriLabel(filterKat) : 'Semua' },
+        { label: 'Pencarian', value: search || '-' },
+        { label: 'Total Laporan', value: filtered.length },
+        { label: 'Sumber', value: 'Mutasi Penjagaan' }
+      ],
+      columns: [
+        { header: 'NO', width: '4%' },
+        { header: 'TANGGAL', width: '9%' },
+        { header: 'JAM LAPORAN', width: '8%' },
+        { header: 'JAM KEJADIAN', width: '8%' },
+        { header: 'PETUGAS', width: '10%' },
+        { header: 'NRP', width: '7%' },
+        { header: 'LOKASI/POS', width: '12%' },
+        { header: 'KATEGORI', width: '9%' },
+        { header: 'URAIAN LAPORAN / KEJADIAN / PERISTIWA', width: '24%' },
+        { header: 'FOTO', width: '9%' }
+      ],
+      rows: filtered.map((log, idx) => [
+        idx + 1,
+        formatDateOnlyId(log.tanggal),
+        log.waktu || '-',
+        log.jamKejadian || log.waktu || '-',
+        log.petugas || log.pelapor || '-',
+        log.nrp || '-',
+        log.lokasi || '-',
+        getKategoriLabel(log.kategori),
+        { text: log.uraian || log.deskripsi || '-', className: 'text-left' },
+        { image: log.foto, text: log.foto ? 'Foto bukti' : '-' }
+      ])
+    });
+    if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -138,6 +182,10 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                   );
                 })}
               </div>
+              {kategori === '__lainnya__' && (
+                <input type="text" value={kategoriLainnya} onChange={e => setKategoriLainnya(e.target.value)}
+                  placeholder="Ketik kategori lain..." className="modern-input" style={{ marginTop: '0.4rem', fontSize: '0.8rem' }} />
+              )}
             </div>
             
             <div className="step-field">
@@ -177,12 +225,8 @@ export default function MutasiPenjagaan({ currentUser, logs, onAddLog, onDeleteL
                 <option value="">Semua Kategori</option>
                 {KATEGORI_MUTASI.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
               </select>
-              <button onClick={() => window.print()} className="btn-secondary" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Printer size={14} /> Cetak</button>
+              <button onClick={handleExportMutasiPDF} className="btn-primary" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Printer size={14} /> Export PDF</button>
               </div>
-              {kategori === '__lainnya__' && (
-                <input type="text" value={kategoriLainnya} onChange={e => setKategoriLainnya(e.target.value)}
-                  placeholder="Ketik kategori lain..." className="modern-input" style={{ marginTop: '0.4rem', fontSize: '0.8rem' }} />
-              )}
             </div>
 
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>

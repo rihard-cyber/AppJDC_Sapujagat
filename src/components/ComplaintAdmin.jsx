@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MessageSquare, CheckCircle, AlertTriangle, Clock, Filter, Search, Send, Phone, Building, MapPin, User, FileText, X, ChevronRight, QrCode, Copy, Download, Printer } from 'lucide-react';
+import { exportTableToPdf, formatDateForFile, formatDateTimeId, getFirstPhoto } from '../utils/exportPdf';
 
 const DEPARTMENTS = ['Teknisi', 'Cleaning', 'Keamanan'];
 
@@ -33,7 +34,7 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint, onDelete
 
   const filtered = complaints.filter(c => {
     if (filter !== 'all' && c.status !== filter) return false;
-    if (search && !c.ticketId.toLowerCase().includes(search.toLowerCase()) && !c.name.toLowerCase().includes(search.toLowerCase()) && !c.tenant.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !c.ticketId.toLowerCase().includes(search.toLowerCase()) && !c.name.toLowerCase().includes(search.toLowerCase()) && !c.tenant.toLowerCase().includes(search.toLowerCase()) && !(c.location || '').toLowerCase().includes(search.toLowerCase()) && !(c.phone || '').toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
@@ -56,6 +57,46 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint, onDelete
     if (!complaint) return;
     const history = [...(complaint.history || []), { status: 'Diproses', timestamp: new Date().toISOString(), note: `Didisposisikan ke ${dept}` }];
     onUpdateComplaint(id, { department: dept, status: 'Diproses', history, waStatus: `Terkirim (${dept})`, waSentAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB', updatedAt: new Date().toISOString() });
+  };
+
+  const handleExportComplaintPDF = () => {
+    const ok = exportTableToPdf({
+      title: 'Tiketing Komplain / Pengaduan Tenant, Pengunjung',
+      fileName: `tiket-komplain-smpjdc-${formatDateForFile()}`,
+      meta: [
+        { label: 'Filter Status', value: filter === 'all' ? 'Semua' : filter },
+        { label: 'Pencarian', value: search || '-' },
+        { label: 'Total Data', value: filtered.length },
+        { label: 'Sumber', value: 'Komplain Tenant' }
+      ],
+      columns: [
+        { header: 'NO', width: '4%' },
+        { header: 'JAM/TGGL KOMPLEN', width: '11%' },
+        { header: 'NAMA LENGKAP', width: '9%' },
+        { header: 'NO TELEPON', width: '9%' },
+        { header: 'NAMA TENANT/SORUM/PENGUNJUNG', width: '13%' },
+        { header: 'LOKASI', width: '8%' },
+        { header: 'KATEGORI KOMPLAIN', width: '10%' },
+        { header: 'DESKRIPSI KOMPLAIN', width: '15%' },
+        { header: 'FOTO', width: '9%' },
+        { header: 'STATUS (OPOSISI)', width: '8%' },
+        { header: 'KETERANGAN', width: '8%' }
+      ],
+      rows: filtered.map((c, idx) => [
+        idx + 1,
+        formatDateTimeId(c.createdAt),
+        c.name || '-',
+        c.phone || '-',
+        c.tenant || '-',
+        c.location || c.floor || '-',
+        c.category || '-',
+        { text: c.description || '-', className: 'text-left' },
+        { image: getFirstPhoto(c.photos), text: c.photos?.length ? `${c.photos.length} foto` : '-' },
+        c.department ? `DI TERUSKAN KE ${String(c.department).toUpperCase()}` : (c.status || '-'),
+        c.remarks || (c.status === 'Selesai' ? 'DONE' : (c.waStatus || '-'))
+      ])
+    });
+    if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
   };
 
   return (
@@ -172,7 +213,7 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint, onDelete
             ))}
           </div>
         </div>
-        <button onClick={() => window.print()} className="btn-secondary" style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Printer size={12} /> Cetak</button>
+        <button onClick={handleExportComplaintPDF} className="btn-primary" style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Printer size={12} /> Export PDF</button>
       </div>
 
       {filtered.length === 0 ? (
@@ -200,7 +241,7 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint, onDelete
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.68rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Building size={10} /> {c.tenant}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><MapPin size={10} /> {c.floor}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><MapPin size={10} /> {c.location || c.floor}</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><AlertTriangle size={10} /> {c.category}</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Clock size={10} /> {new Date(c.createdAt).toLocaleDateString('id-ID', { dateStyle: 'short' })}</span>
               </div>
@@ -231,6 +272,22 @@ export default function ComplaintAdmin({ complaints, onUpdateComplaint, onDelete
                       <a href={`https://wa.me/${c.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" style={{ color: 'var(--color-success)', fontWeight: 600 }}>{c.phone}</a>
                     </div>
                   )}
+
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.3rem' }}>KETERANGAN ADMIN / HASIL AKHIR</p>
+                    <textarea
+                      defaultValue={c.remarks || ''}
+                      onBlur={(e) => {
+                        const value = e.target.value.trim();
+                        if (value !== (c.remarks || '')) {
+                          onUpdateComplaint(c.id, { remarks: value, updatedAt: new Date().toISOString() });
+                        }
+                      }}
+                      placeholder="Contoh: DONE / Sudah ditindaklanjuti / Menunggu konfirmasi"
+                      className="modern-input"
+                      style={{ minHeight: '58px', height: '58px', resize: 'vertical', fontSize: '0.75rem', padding: '0.5rem' }}
+                    />
+                  </div>
 
                   {/* Timeline */}
                   {c.history?.length > 0 && (

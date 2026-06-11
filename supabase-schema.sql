@@ -108,12 +108,15 @@ CREATE TABLE IF NOT EXISTS complaints (
   id TEXT,
   ticket_id TEXT,
   name TEXT,
+  phone TEXT,
   tenant TEXT,
   floor TEXT,
+  location TEXT,
   category TEXT,
   description TEXT,
   department TEXT,
   status TEXT,
+  remarks TEXT,
   wa_status TEXT,
   wa_sent_at TEXT,
   photos JSONB,
@@ -125,6 +128,10 @@ CREATE TABLE IF NOT EXISTS complaints (
 
 CREATE INDEX IF NOT EXISTS idx_complaints_id ON complaints(id);
 CREATE INDEX IF NOT EXISTS idx_complaints_created_at ON complaints(created_at);
+
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS remarks TEXT;
 
 -- ── Areas / Checkpoints ──────────────────────
 CREATE TABLE IF NOT EXISTS areas (

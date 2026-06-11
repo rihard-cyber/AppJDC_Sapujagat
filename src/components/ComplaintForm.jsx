@@ -33,6 +33,7 @@ export default function ComplaintForm({ onAddComplaint }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [floor, setFloor] = useState('');
+  const [location, setLocation] = useState('');
   const [tenant, setTenant] = useState('');
   const [category, setCategory] = useState('');
   const [categoryCustom, setCategoryCustom] = useState('');
@@ -115,12 +116,14 @@ export default function ComplaintForm({ onAddComplaint }) {
       name: name.trim(),
       phone: phone.trim(),
       floor,
+      location: location.trim(),
       tenant: tenant.trim(),
       category: finalCategory,
       description: description.trim(),
       photos,
       status: 'Baru',
       department: '',
+      remarks: '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       history: [{ status: 'Baru', timestamp: new Date().toISOString(), note: 'Komplain dibuat' }],
@@ -212,7 +215,7 @@ export default function ComplaintForm({ onAddComplaint }) {
             Simpan nomor tiket untuk melacak status komplain Anda.
           </p>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={() => { setStep('form'); setSubmitted(false); setName(''); setPhone(''); setFloor(''); setTenant(''); setCategory(''); setCategoryCustom(''); setDescription(''); setPhotos([]); setErrors({}); }} className="btn-primary" style={{ flex: 1, padding: '0.65rem', fontSize: '0.8rem', minHeight: '44px', touchAction: 'manipulation' }}>
+            <button onClick={() => { setStep('form'); setSubmitted(false); setName(''); setPhone(''); setFloor(''); setLocation(''); setTenant(''); setCategory(''); setCategoryCustom(''); setDescription(''); setPhotos([]); setErrors({}); }} className="btn-primary" style={{ flex: 1, padding: '0.65rem', fontSize: '0.8rem', minHeight: '44px', touchAction: 'manipulation' }}>
               Buat Komplain Baru
             </button>
             <button onClick={() => { setStep('form'); setSubmitted(false); setTrackMode(true); }} className="btn-secondary" style={{ flex: 1, padding: '0.65rem', fontSize: '0.8rem' }}>
@@ -274,6 +277,7 @@ export default function ComplaintForm({ onAddComplaint }) {
                 <div className="preview-row"><span className="preview-label">Pelapor</span><span className="preview-value">{trackData.name}</span></div>
                 {trackData.phone && <div className="preview-row"><span className="preview-label">Telepon</span><span className="preview-value">{trackData.phone}</span></div>}
                 <div className="preview-row"><span className="preview-label">Lantai</span><span className="preview-value">{trackData.floor}</span></div>
+                {trackData.location && <div className="preview-row"><span className="preview-label">Lokasi</span><span className="preview-value">{trackData.location}</span></div>}
                 <div className="preview-row"><span className="preview-label">Tenant</span><span className="preview-value">{trackData.tenant}</span></div>
                 <div className="preview-row"><span className="preview-label">Kategori</span><span className="preview-value">{trackData.category}</span></div>
               </div>
@@ -374,6 +378,16 @@ export default function ComplaintForm({ onAddComplaint }) {
               {FLOORS.map(f => <option key={f} value={f}>{f}</option>)}
             </select>
             {errors.floor && <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)' }}>{errors.floor}</span>}
+          </div>
+
+          {/* Tenant */}
+          <div className="step-field">
+            <label>LOKASI DETAIL <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(opsional)</span></label>
+            <div className="scan-input-group">
+              <MapPin size={16} style={{ color: 'var(--text-muted)', position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <input type="text" value={location} onChange={e => setLocation(e.target.value)}
+                placeholder="Cth: Depan Lobby / Koridor Lt. 2" className="modern-input" style={{ paddingLeft: '2rem', fontSize: '0.82rem' }} />
+            </div>
           </div>
 
           {/* Tenant */}

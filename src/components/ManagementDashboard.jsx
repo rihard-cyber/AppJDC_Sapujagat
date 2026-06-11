@@ -19,10 +19,12 @@ import {
   ExternalLink,
   CheckCircle2,
   Phone,
-  Shield
+  Shield,
+  FileText
 } from 'lucide-react';
 import { getWAContacts, buildWAMessage, buildWALink } from '../data/waContacts';
 import { hapticMedium, hapticSuccess, hapticError, hapticWarning } from '../utils/haptics';
+import { exportTableToPdf, formatDateForFile, formatDateTimeId, getFirstPhoto } from '../utils/exportPdf';
 
 const SEVERITY_COLOR = {
   Kritis: '#dc2626',
@@ -247,6 +249,86 @@ export default function ManagementDashboard({
       `Terdapat ${unresolved} tiket temuan aktif${critical > 0 ? `, ${critical} di antaranya KRITIS` : ''}. ` +
       `${waSent} tiket telah diteruskan via WhatsApp. ` +
       `${unvisitedAreas.length > 0 ? `${unvisitedAreas.length} area masih belum dipatroli hari ini.` : 'Seluruh area telah dipatroli. '}`;
+  };
+
+  const handleExportCommandFindingsPDF = () => {
+    const ok = exportTableToPdf({
+      title: 'Tiket Temuan & Disposisi Operasional',
+      fileName: `dashboard-temuan-disposisi-smpjdc-${formatDateForFile()}`,
+      meta: [
+        { label: 'Filter Dept', value: activeTab === 'semua' ? 'Semua' : activeTab },
+        { label: 'Total Tiket', value: filteredFindings.length },
+        { label: 'Open', value: filteredFindings.filter(f => f.status !== 'Closed').length },
+        { label: 'WA Terkirim', value: filteredFindings.filter(f => f.waStatus?.startsWith('Terkirim')).length }
+      ],
+      columns: [
+        { header: 'NO', width: '4%' },
+        { header: 'JAM/TGGL', width: '12%' },
+        { header: 'PELAPOR', width: '10%' },
+        { header: 'AREA/LOKASI', width: '13%' },
+        { header: 'KATEGORI', width: '10%' },
+        { header: 'DETAIL', width: '18%' },
+        { header: 'SEVERITY', width: '7%' },
+        { header: 'DISPOSISI', width: '8%' },
+        { header: 'STATUS', width: '8%' },
+        { header: 'WA STATUS', width: '8%' },
+        { header: 'FOTO', width: '8%' }
+      ],
+      rows: filteredFindings.map((f, idx) => [
+        idx + 1,
+        formatDateTimeId(f.tanggal || f.createdAt),
+        f.pelapor || '-',
+        f.area || '-',
+        f.kategori || '-',
+        { text: f.detail || '-', className: 'text-left' },
+        f.severity || '-',
+        f.department || '-',
+        f.status || '-',
+        f.waStatus || '-',
+        { image: getFirstPhoto(f.foto), text: f.foto ? 'Foto bukti' : '-' }
+      ])
+    });
+    if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
+  };
+
+  const handleExportDashboardComplaintsPDF = () => {
+    const ok = exportTableToPdf({
+      title: 'Tiketing Komplain / Pengaduan Tenant, Pengunjung',
+      fileName: `dashboard-komplain-tenant-smpjdc-${formatDateForFile()}`,
+      meta: [
+        { label: 'Filter Status', value: complaintFilter === 'all' ? 'Semua' : complaintFilter },
+        { label: 'Total Komplain', value: filteredComplaints.length },
+        { label: 'Selesai', value: filteredComplaints.filter(c => c.status === 'Selesai').length },
+        { label: 'Sumber', value: 'Dashboard Manajemen' }
+      ],
+      columns: [
+        { header: 'NO', width: '4%' },
+        { header: 'JAM/TGGL KOMPLEN', width: '12%' },
+        { header: 'NAMA LENGKAP', width: '10%' },
+        { header: 'NO TELEPON', width: '9%' },
+        { header: 'NAMA TENANT/SORUM/PENGUNJUNG', width: '13%' },
+        { header: 'LOKASI', width: '9%' },
+        { header: 'KATEGORI KOMPLAIN', width: '10%' },
+        { header: 'DESKRIPSI KOMPLAIN', width: '16%' },
+        { header: 'FOTO', width: '8%' },
+        { header: 'STATUS (OPOSISI)', width: '9%' },
+        { header: 'KETERANGAN', width: '8%' }
+      ],
+      rows: filteredComplaints.map((c, idx) => [
+        idx + 1,
+        formatDateTimeId(c.createdAt),
+        c.name || '-',
+        c.phone || '-',
+        c.tenant || '-',
+        c.location || c.floor || '-',
+        c.category || '-',
+        { text: c.description || '-', className: 'text-left' },
+        { image: getFirstPhoto(c.photos), text: c.photos?.length ? `${c.photos.length} foto` : '-' },
+        c.department ? `DI TERUSKAN KE ${String(c.department).toUpperCase()}` : (c.status || '-'),
+        c.remarks || (c.status === 'Selesai' ? 'DONE' : (c.waStatus || '-'))
+      ])
+    });
+    if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
   };
 
   // ── Area Status ────────────────────────────────────────────────────────────
@@ -813,6 +895,7 @@ export default function ManagementDashboard({
                 <h4 style={{ fontSize: '0.9rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'white' }}>
                   Daftar Temuan Keamanan & Fasilitas
                 </h4>
+                <button onClick={handleExportCommandFindingsPDF} className="btn-secondary" style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}><FileText size={12} /> Export PDF</button>
                 {selectedFindings.length > 0 && (
                   <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{selectedFindings.length} terpilih</span>
@@ -1076,6 +1159,7 @@ export default function ManagementDashboard({
               <h4 style={{ fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'white' }}>
                 Tiket Komplain & Pengaduan Tenant / Pengunjung
               </h4>
+              <button onClick={handleExportDashboardComplaintsPDF} className="btn-secondary" style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', marginRight: '0.5rem' }}><FileText size={12} /> Export PDF</button>
               <div style={{ display: 'flex', gap: '0.3rem', fontSize: '0.7rem' }}>
                 {['all', 'Baru', 'Diproses', 'Selesai'].map(s => (
                   <button key={s} onClick={() => setComplaintFilter(s)} style={{

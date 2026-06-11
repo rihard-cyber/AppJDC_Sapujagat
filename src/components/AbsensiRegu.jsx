@@ -2,9 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Calendar, Users, MapPin, Clock, CheckCircle2, UserCheck, RefreshCw, 
   ClipboardList, HelpCircle, MessageSquare, Phone, AlertTriangle, Check, 
-  User, ExternalLink, Shield, Activity, Edit2, Save, X, BookOpen, Search
+  User, ExternalLink, Shield, Activity, Edit2, Save, X, BookOpen, Search,
+  FileText
 } from 'lucide-react';
 import { SHIFT_CODES, getRoster, getYearMonth, getDatesInMonth } from '../data/rosterData';
+import { exportTableToPdf, formatDateForFile, formatDateOnlyId } from '../utils/exportPdf';
 
 export default function AbsensiRegu({ 
   users, 
@@ -58,6 +60,11 @@ export default function AbsensiRegu({
     }
     return list;
   }, [allPatrolUsers, selectedRegu, memberSearch]);
+
+  const reguMembers = useMemo(() => {
+    if (!selectedRegu || selectedRegu === 'Semua Regu') return allPatrolUsers;
+    return allPatrolUsers.filter(u => u.regu === selectedRegu);
+  }, [allPatrolUsers, selectedRegu]);
 
   // Rows state for table editing
   const [rows, setRows] = useState([]);
@@ -291,6 +298,61 @@ _Sistem Manajemen Keamanan JDC_`;
     }
   };
 
+  const handleExportAttendancePDF = () => {
+    const sourceLogs = attendanceLogs && attendanceLogs.length > 0
+      ? attendanceLogs
+      : (todayAttendance ? [todayAttendance] : []);
+    const rowsForExport = [];
+    sourceLogs.forEach((log) => {
+      (log.details || []).forEach((detail) => {
+        const substitute = users.find(u => String(u.id) === String(detail.penggantiId));
+        rowsForExport.push({ log, detail, substitute });
+      });
+    });
+
+    const ok = exportTableToPdf({
+      title: 'Absensi & Plotting Penjagaan',
+      fileName: `absensi-plotting-smpjdc-${formatDateForFile()}`,
+      meta: [
+        { label: 'Regu Aktif', value: selectedRegu },
+        { label: 'Shift Aktif', value: selectedShift },
+        { label: 'Total Log', value: sourceLogs.length },
+        { label: 'Total Personil', value: rowsForExport.length }
+      ],
+      columns: [
+        { header: 'NO', width: '4%' },
+        { header: 'TANGGAL', width: '9%' },
+        { header: 'HARI', width: '7%' },
+        { header: 'REGU', width: '8%' },
+        { header: 'SHIFT', width: '6%' },
+        { header: 'JAM DINAS', width: '9%' },
+        { header: 'NAMA PERSONIL', width: '13%' },
+        { header: 'NRP', width: '7%' },
+        { header: 'JABATAN', width: '9%' },
+        { header: 'STATUS HADIR', width: '9%' },
+        { header: 'KETERANGAN', width: '10%' },
+        { header: 'PLOTTING POS', width: '12%' },
+        { header: 'PENGGANTI', width: '10%' }
+      ],
+      rows: rowsForExport.map(({ log, detail, substitute }, idx) => [
+        idx + 1,
+        formatDateOnlyId(log.tanggal),
+        log.hari || '-',
+        log.regu || detail.regu || '-',
+        log.shift || '-',
+        log.jamDinas || detail.jamDinas || '-',
+        detail.nama || '-',
+        detail.nrp || '-',
+        detail.jabatan || '-',
+        detail.status || '-',
+        detail.alasan || '-',
+        detail.posPlotting || '-',
+        substitute ? `${substitute.nama} (${substitute.regu || '-'})` : '-'
+      ])
+    });
+    if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       
@@ -358,9 +420,14 @@ _Sistem Manajemen Keamanan JDC_`;
           </div>
         </div>
 
-        <div style={{ textAlign: 'right', fontSize: '0.8rem' }}>
-          <span style={{ color: 'var(--text-secondary)' }}>Hari Ini:</span>{' '}
-          <strong style={{ color: 'var(--color-primary)' }}>{hari}, {todayStr}</strong>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+          <div style={{ textAlign: 'right', fontSize: '0.8rem' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>Hari Ini:</span>{' '}
+            <strong style={{ color: 'var(--color-primary)' }}>{hari}, {todayStr}</strong>
+          </div>
+          <button type="button" onClick={handleExportAttendancePDF} className="btn-secondary" style={{ padding: '0.45rem 0.75rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <FileText size={14} /> Export PDF Absensi
+          </button>
         </div>
       </div>
 

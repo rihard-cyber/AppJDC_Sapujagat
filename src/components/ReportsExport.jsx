@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { buildWALink } from '../data/waContacts';
 import POS_LIST from '../data/posList';
+import { exportTableToPdf, formatDateForFile, formatDateTimeId, getFirstPhoto } from '../utils/exportPdf';
 
 // Unique positions from posList sorted by lantai
 const POS_OPTIONS = POS_LIST.reduce((acc, pos) => {
@@ -104,9 +105,87 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
     document.body.removeChild(link);
   };
 
-  // Export to PDF (Triggers Print Window with custom print styles)
+  // Export to PDF with a dedicated print table
   const handleExportPDF = () => {
-    window.print();
+    const ok = exportTableToPdf({
+      title: 'Hasil Patroli Barcode',
+      fileName: `hasil-patroli-barcode-smpjdc-${formatDateForFile()}`,
+      meta: [
+        { label: 'Shift', value: filterShift },
+        { label: 'Pos/Titik', value: filterPost },
+        { label: 'Petugas', value: filterOfficer },
+        { label: 'Total Scan', value: filteredReports.length }
+      ],
+      columns: [
+        { header: 'NO', width: '4%' },
+        { header: 'JAM/TGGL SCAN', width: '12%' },
+        { header: 'PETUGAS', width: '9%' },
+        { header: 'GEDUNG', width: '11%' },
+        { header: 'LANTAI/ZONA', width: '8%' },
+        { header: 'TITIK BARCODE', width: '12%' },
+        { header: 'SHIFT', width: '6%' },
+        { header: 'KATEGORI', width: '9%' },
+        { header: 'TEMUAN/KONDISI', width: '11%' },
+        { header: 'STATUS', width: '7%' },
+        { header: 'KETERANGAN', width: '12%' },
+        { header: 'FOTO', width: '8%' }
+      ],
+      rows: filteredReports.map((r, idx) => [
+        idx + 1,
+        formatDateTimeId(r.timestamp),
+        r.userName || '-',
+        r.gedung || '-',
+        `${r.lantai || '-'} / ${r.zona || '-'}`,
+        r.titik || '-',
+        r.shift || '-',
+        r.kategori || '-',
+        r.temuan || r.kondisi || '-',
+        r.status === 'critical' ? 'Critical' : r.status === 'temuan' ? 'Temuan' : 'Normal',
+        { text: `${r.keterangan || '-'}\nGPS: ${r.antiFraud?.gpsValid ? 'Valid' : '-'}\nDevice: ${r.antiFraud?.device || '-'}`, className: 'text-left' },
+        { image: r.foto, text: r.foto ? 'Foto bukti' : '-' }
+      ])
+    });
+    if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
+  };
+
+  const handleExportFindingsPDF = () => {
+    const ok = exportTableToPdf({
+      title: 'Tiket Temuan & Tindak Lanjut',
+      fileName: `tiket-temuan-smpjdc-${formatDateForFile()}`,
+      meta: [
+        { label: 'Total Temuan', value: findings.length },
+        { label: 'Open', value: findings.filter(f => f.status !== 'Closed').length },
+        { label: 'Closed', value: findings.filter(f => f.status === 'Closed').length },
+        { label: 'Sumber', value: 'Temuan Patroli' }
+      ],
+      columns: [
+        { header: 'NO', width: '4%' },
+        { header: 'JAM/TGGL TEMUAN', width: '12%' },
+        { header: 'PELAPOR', width: '9%' },
+        { header: 'AREA/LOKASI', width: '12%' },
+        { header: 'KATEGORI', width: '10%' },
+        { header: 'DETAIL TEMUAN', width: '17%' },
+        { header: 'SEVERITY', width: '7%' },
+        { header: 'DISPOSISI', width: '8%' },
+        { header: 'STATUS', width: '8%' },
+        { header: 'WA STATUS', width: '8%' },
+        { header: 'FOTO', width: '8%' }
+      ],
+      rows: findings.map((f, idx) => [
+        idx + 1,
+        formatDateTimeId(f.tanggal || f.createdAt),
+        f.pelapor || '-',
+        f.area || '-',
+        f.kategori || '-',
+        { text: f.detail || '-', className: 'text-left' },
+        f.severity || '-',
+        f.department || '-',
+        f.status || '-',
+        f.waStatus || '-',
+        { image: getFirstPhoto(f.foto), text: f.foto ? 'Foto bukti' : '-' }
+      ])
+    });
+    if (!ok) alert('Popup export PDF diblokir browser. Izinkan popup untuk aplikasi ini.');
   };
 
   return (
@@ -181,9 +260,12 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
 
       {/* 2. FINDINGS TICKETS BOARD (Tindak Lanjut Notifikasi) */}
       <div className="glass-panel panel-padding">
-        <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-warning)' }}>
-          <AlertTriangle size={18} /> Tindak Lanjut Notifikasi Temuan
-        </h3>
+        <div className="flex-between" style={{ marginBottom: '1rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-warning)' }}>
+            <AlertTriangle size={18} /> Tindak Lanjut Notifikasi Temuan
+          </h3>
+          <button onClick={handleExportFindingsPDF} className="btn-secondary btn-full" style={{ maxWidth: '190px' }}><FileText size={16} /> Export PDF Temuan</button>
+        </div>
         
         <div className="form-grid-2">
           {findings.map(find => {
@@ -281,7 +363,7 @@ export default function ReportsExport({ reports, findings, users, onUpdateFindin
           <h3 style={{ fontSize: '1.1rem' }}>Log Laporan Patroli Keamanan ({filteredReports.length})</h3>
           <div className="flex-row" style={{ gap: '0.5rem' }}>
             <button onClick={handleExportCSV} className="btn-secondary btn-full"><FileSpreadsheet size={16} /> Export Excel (CSV)</button>
-            <button onClick={handleExportPDF} className="btn-primary btn-full"><FileText size={16} /> Cetak PDF</button>
+            <button onClick={handleExportPDF} className="btn-primary btn-full"><FileText size={16} /> Export PDF Patroli</button>
           </div>
         </div>
 
