@@ -10,7 +10,6 @@ export function initRipple() {
   style.textContent = `
     .ripple-effect {
       position: relative;
-      overflow: hidden;
       cursor: pointer;
     }
 
