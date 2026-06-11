@@ -47,3 +47,13 @@ try {
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
+
+task webBuild(type: Exec) {
+    workingDir '../../'
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        commandLine 'cmd', '/c', 'npm run build && npx cap sync android'
+    } else {
+        commandLine 'sh', '-c', 'npm run build && npx cap sync android'
+    }
+}
+preBuild.dependsOn webBuild
