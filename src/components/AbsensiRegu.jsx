@@ -32,6 +32,7 @@ export default function AbsensiRegu({
   
   const [selectedShift, setSelectedShift] = useState('P'); // 'P' | 'S' | 'M' | 'Md' etc
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'form' | 'history'
+  const [selectedLemburMonth, setSelectedLemburMonth] = useState(() => getYearMonth());
   const [memberSearch, setMemberSearch] = useState('');
   const [selectedAddMemberId, setSelectedAddMemberId] = useState('');
   
@@ -55,6 +56,102 @@ export default function AbsensiRegu({
     if (!selectedRegu || selectedRegu === 'Semua Regu') return allPatrolUsers;
     return allPatrolUsers.filter(u => u.regu === selectedRegu);
   }, [allPatrolUsers, selectedRegu]);
+
+  // Filter and compile all overtime (Lembur) entries
+  const lemburanRows = useMemo(() => {
+    const list = [];
+    attendanceLogs.forEach(log => {
+      if (!log.tanggal || !log.tanggal.startsWith(selectedLemburMonth)) return;
+      (log.details || []).forEach(d => {
+        const isLemburRow = d.isLembur === true || 
+                            d.alasan?.toLowerCase().includes('lembur') || 
+                            d.alasan?.toLowerCase().includes('backup') || 
+                            d.status === 'Tukar Shift';
+        
+        // If regu filter is active, check if either the log regu or personil's regu matches
+        if (selectedRegu !== 'Semua Regu' && log.regu !== selectedRegu && d.regu !== selectedRegu) return;
+
+        if (isLemburRow) {
+          list.push({
+            logId: log.id,
+            tanggal: log.tanggal,
+            hari: log.hari || ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][new Date(log.tanggal).getDay()],
+            regu: log.regu,
+            shift: log.shift,
+            detail: d
+          });
+        }
+      });
+    });
+    return list.sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+  }, [attendanceLogs, selectedLemburMonth, selectedRegu]);
+
+  const lemburStats = useMemo(() => {
+    let totalJam = 0;
+    const uniquePersonnel = new Set();
+    lemburanRows.forEach(row => {
+      const jam = parseInt(row.detail.jamLembur, 10) || 8;
+      totalJam += jam;
+      uniquePersonnel.add(row.detail.personilId || row.detail.nama);
+    });
+    return {
+      totalJam,
+      totalKegiatan: lemburanRows.length,
+      totalPersonil: uniquePersonnel.size
+    };
+  }, [lemburanRows]);
+
+  const handleExportLemburPDF = () => {
+    if (lemburanRows.length === 0) {
+      alert('Belum ada data lemburan untuk diexport.');
+      return;
+    }
+
+    const ok = exportTableToPdf({
+      title: 'Laporan Rekapitulasi Lemburan Keamanan JDC',
+      fileName: `rekap-lembur-smpjdc-${selectedLemburMonth}`,
+      meta: [
+        { label: 'Bulan Rekap', value: selectedLemburMonth },
+        { label: 'Regu Pantau', value: selectedRegu },
+        { label: 'Total Jam Lembur', value: `${lemburStats.totalJam} Jam` },
+        { label: 'Total Personil', value: `${lemburStats.totalPersonil} Orang` }
+      ],
+      columns: [
+        { header: 'NO', width: '4%' },
+        { header: 'TANGGAL', width: '9%' },
+        { header: 'NAMA PERSONIL', width: '13%' },
+        { header: 'NRP', width: '7%' },
+        { header: 'REGU / JABATAN', width: '10%' },
+        { header: 'SHIFT LEMBUR', width: '7%' },
+        { header: 'DURASI', width: '6%' },
+        { header: 'JAM MASUK/PULANG', width: '10%' },
+        { header: 'VERIFIKASI GPS', width: '13%' },
+        { header: 'FOTO SELFIE', width: '12%' },
+        { header: 'KEPERLUAN / ALASAN', width: '10%' }
+      ],
+      rows: lemburanRows.map((row, idx) => {
+        const d = row.detail;
+        const checkInOutStr = `${d.checkInTime || '-'}\n${d.checkOutTime || '-'}`;
+        const gpsStr = (d.lat && d.lng) ? `Lat: ${Number(d.lat).toFixed(4)}\nLong: ${Number(d.lng).toFixed(4)}` : '-';
+        
+        return [
+          idx + 1,
+          formatDateOnlyId(row.tanggal),
+          d.nama || '-',
+          d.nrp || '-',
+          `${d.regu || '-'} / ${d.jabatan || '-'}`,
+          `Shift ${row.shift}`,
+          `${parseInt(d.jamLembur, 10) || 8} Jam`,
+          checkInOutStr,
+          gpsStr,
+          d.fotoSelfie ? { image: d.fotoSelfie, text: d.nama || '' } : '-',
+          d.alasan || 'Lembur / Backup'
+        ];
+      })
+    });
+
+    if (!ok) alert('Ekspor PDF gagal. Pastikan browser tidak memblokir pop-up.');
+  };
 
   // Rows state for table editing
   const [rows, setRows] = useState([]);
@@ -418,7 +515,8 @@ _Sistem Manajemen Keamanan JDC_`;
         {[{ id: 'roster-daily', icon: <BookOpen size={16}/>, label: '📅 Absensi Harian (Roster)' },
           { id: 'dashboard',    icon: <Activity size={16}/>,     label: 'Dashboard Regu' },
           { id: 'form',         icon: <ClipboardList size={16}/>, label: 'Form Absensi Manual' },
-          { id: 'history',      icon: <UserCheck size={16}/>,     label: 'Histori Absensi' }
+          { id: 'history',      icon: <UserCheck size={16}/>,     label: 'Histori Absensi' },
+          { id: 'lemburan',     icon: <Clock size={16}/>,         label: '⏱️ Rekap Lemburan' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -1029,6 +1127,156 @@ _Sistem Manajemen Keamanan JDC_`;
                 );
               })
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* TAB 4: REKAP & LAPORAN LEMBURAN */}
+      {/* ========================================== */}
+      {activeTab === 'lemburan' && (
+        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <h3 style={{ fontSize: '1.1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Clock size={20} className="text-primary" />
+              <span>Rekapitulasi Lemburan & Penambahan Personil Dadakan</span>
+            </h3>
+            
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input 
+                type="month" 
+                value={selectedLemburMonth} 
+                onChange={e => setSelectedLemburMonth(e.target.value)} 
+                className="modern-input"
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.82rem', fontFamily: 'var(--font-sans)', width: '150px' }}
+              />
+              <button 
+                type="button" 
+                onClick={handleExportLemburPDF} 
+                className="btn-primary" 
+                style={{ padding: '0.45rem 1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <FileText size={14} /> Ekspor PDF Lemburan
+              </button>
+            </div>
+          </div>
+
+          {/* KPI Mini Grid */}
+          <div className="grid-cols-3" style={{ gap: '1rem' }}>
+            <div className="glass-panel" style={{ padding: '1rem', borderLeft: '4px solid var(--color-primary)' }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)' }}>TOTAL AKUMULASI LEMBUR</span>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                {lemburStats.totalJam} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Jam</span>
+              </div>
+            </div>
+            <div className="glass-panel" style={{ padding: '1rem', borderLeft: '4px solid var(--color-success)' }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)' }}>TOTAL KEGIATAN LEMBUR</span>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                {lemburStats.totalKegiatan} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Tugas</span>
+              </div>
+            </div>
+            <div className="glass-panel" style={{ padding: '1rem', borderLeft: '4px solid var(--color-warning)' }}>
+              <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)' }}>PERSONIL YANG LEMBUR</span>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                {lemburStats.totalPersonil} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Orang</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Data Table */}
+          <div style={{ overflowX: 'auto', border: '1px solid var(--border-glass)', borderRadius: '8px', background: 'rgba(0,0,0,0.1)' }}>
+            <table className="absensi-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '950px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-glass)', background: 'rgba(255,255,255,0.01)' }}>
+                  <th style={{ padding: '0.75rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>No</th>
+                  <th style={{ padding: '0.75rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Tanggal</th>
+                  <th style={{ padding: '0.75rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Nama Personil</th>
+                  <th style={{ padding: '0.75rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Shift</th>
+                  <th style={{ padding: '0.75rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Durasi</th>
+                  <th style={{ padding: '0.75rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Jam Masuk/Pulang</th>
+                  <th style={{ padding: '0.75rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Verifikasi GPS</th>
+                  <th style={{ padding: '0.75rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textAlign: 'center' }}>Foto Selfie</th>
+                  <th style={{ padding: '0.75rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Alasan / Keperluan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lemburanRows.length === 0 ? (
+                  <tr>
+                    <td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Tidak ditemukan riwayat lemburan untuk filter regu/bulan yang dipilih.
+                    </td>
+                  </tr>
+                ) : (
+                  lemburanRows.map((row, idx) => {
+                    const d = row.detail;
+                    return (
+                      <tr key={`${row.logId}-${idx}`} style={{ borderBottom: '1px solid var(--border-glass)', transition: 'background 0.2s' }}>
+                        <td style={{ padding: '0.75rem', fontSize: '0.75rem', fontWeight: 600 }}>{idx + 1}</td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.75rem' }}>
+                          <span style={{ fontWeight: 700 }}>{row.hari}</span>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{row.tanggal}</div>
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <img 
+                              src={d.fotoSelfie || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40'} 
+                              alt="" 
+                              style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid rgba(124,58,237,0.3)' }}
+                              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40'; }}
+                            />
+                            <div>
+                              <div style={{ fontWeight: 800, fontSize: '0.78rem' }}>{d.nama}</div>
+                              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>NRP: {d.nrp} · {d.regu}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.75rem' }}>
+                          <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>Shift {row.shift}</span>
+                        </td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                          {parseInt(d.jamLembur, 10) || 8} Jam
+                        </td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.72rem', lineHeight: '1.4' }}>
+                          <div>🟢 {d.checkInTime || '-'}</div>
+                          {d.checkOutTime && <div style={{ color: 'var(--color-danger)' }}>🔴 {d.checkOutTime}</div>}
+                        </td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.68rem', fontFamily: 'monospace', lineHeight: '1.3' }}>
+                          {d.lat && d.lng ? (
+                            <>
+                              <div>Lat: {Number(d.lat).toFixed(4)}</div>
+                              <div>Long: {Number(d.lng).toFixed(4)}</div>
+                            </>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>-</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                          {d.fotoSelfie ? (
+                            <img 
+                              src={d.fotoSelfie} 
+                              alt="Selfie" 
+                              style={{ width: '42px', height: '42px', borderRadius: '6px', objectFit: 'cover', border: '1px solid var(--border-glass)', cursor: 'pointer' }}
+                              onClick={() => {
+                                const w = window.open();
+                                if (w) {
+                                  w.document.write(`<img src="${d.fotoSelfie}" style="max-width:100%; max-height:100vh; display:block; margin:auto;" />`);
+                                  w.document.close();
+                                }
+                              }}
+                            />
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>-</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                          {d.alasan || 'Lembur / Backup'}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

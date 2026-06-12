@@ -282,7 +282,7 @@ export default function SecurityPatrolApp({
   // Camera stream and GPS fetching
   useEffect(() => {
     let activeStream = null;
-    if (tab === 'presensi' && !selfiePhoto) {
+    if (tab === 'presensi' && clockedStatus !== 'in' && !selfiePhoto) {
       setGpsLoading(true);
       getGPSCoordinates().then(coords => {
         setGpsLoading(false);
@@ -331,33 +331,120 @@ export default function SecurityPatrolApp({
         activeStream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [tab, selfiePhoto]);
+  }, [tab, selfiePhoto, clockedStatus]);
 
   const getJamDinasCode = (shiftCode) => {
     const shiftMap = { P: '06:00 - 14:00', S: '14:00 - 22:00', M: '22:00 - 06:00' };
     return shiftMap[shiftCode] || '08:00 - 16:00';
   };
 
-  const handleSelfClockIn = () => {
+  const handleSelfClockIn = async () => {
+    setGpsLoading(true);
+    // 1. Lock actual high-accuracy coordinates on check-in tap
+    const coords = await getGPSCoordinates();
+    setGpsLoading(false);
+
+    if (!coords) {
+      alert('⚠️ Gagal memperoleh lokasi GPS. Pastikan izin lokasi aktif dan GPS berakurasi tinggi dinyalakan.');
+      return;
+    }
+
+    const lat = coords.latitude || 0;
+    const lng = coords.longitude || 0;
+    const accuracy = coords.accuracy || 999;
+    
+    // 2. Validate for Fake GPS / developer mocks
+    const isMocked = coords.mocked === true || coords.isFromMockProvider === true;
+    if (isMocked) {
+      alert('⚠️ DETEKSI FAKE GPS: Sistem mendeteksi Anda menggunakan aplikasi pemalsuan lokasi! Absensi dibatalkan.');
+      return;
+    }
+    
+    if (accuracy === 0 || accuracy === 0.001) {
+      alert('⚠️ DETEKSI EMULATOR: Sinyal GPS terdeteksi tidak valid. Harap gunakan perangkat fisik asli!');
+      return;
+    }
+
+    // 3. JDC Area Radius Check (250 meters from JDC Center)
+    const jdcLat = -6.2000;
+    const jdcLng = 106.8166;
+    const R = 6371e3; // Earth radius in meters
+    const phi1 = (jdcLat * Math.PI) / 180;
+    const phi2 = (lat * Math.PI) / 180;
+    const deltaPhi = ((lat - jdcLat) * Math.PI) / 180;
+    const deltaLambda = ((lng - jdcLng) * Math.PI) / 180;
+
+    const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+              Math.cos(phi1) * Math.cos(phi2) *
+              Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    // Check if test account (Richard / Admin Super) to bypass block but log actual distance
+    const isTestAccount = ['Admin Super', 'admin', 'Admin'].includes(currentUser?.jabatan) || 
+                          currentUser?.nama?.toLowerCase().includes('richard');
+
+    if (distance > 250 && !isTestAccount) {
+      alert(`⚠️ DI LUAR RADIUS: Jarak Anda ${Math.round(distance)}m dari JDC. Jarak maksimal absensi adalah 250m!`);
+      return;
+    }
+
+    if (accuracy > 100 && !isTestAccount) {
+      alert(`⚠️ SINYAL GPS BURUK: Akurasi GPS saat ini tidak memadai (${Math.round(accuracy)}m). Cari lokasi terbuka.`);
+      return;
+    }
+
+    // 4. Take real-time snapshot of the webcam stream
+    let selfieUrl = '';
+    if (cameraStream && videoRef.current) {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = videoRef.current.videoWidth || 320;
+        canvas.height = videoRef.current.videoHeight || 240;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.translate(canvas.width, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+          selfieUrl = canvas.toDataURL('image/jpeg', 0.80); // Compress with 0.8 quality
+        }
+      } catch (e) {
+        console.warn('Gagal capture video frame:', e);
+      }
+    }
+
+    const finalSelfie = selfieUrl || currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120';
     const checkInTimeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    
     setClockInTime(checkInTimeStr);
     setClockedStatus('in');
 
     const currentHourShift = getDetectedShiftCode();
+    
+    // Auto-detect if this is an overtime (Lembur) shift
+    // If user's roster schedule for today is Libur (X) or not defined, flag as Lembur
+    const currentYearMonth = getYearMonth(new Date());
+    const userRoster = getRoster(currentYearMonth);
+    const mySchedule = userRoster[currentUser.id]?.[todayStr];
+    const isOvertime = !mySchedule || mySchedule === 'X';
+
     const currentShiftDetails = {
       personilId: currentUser.id,
       nama: currentUser.nama,
       nrp: currentUser.nrp,
       regu: currentUser.regu || 'Regu A',
       jabatan: currentUser.jabatan,
-      status: 'Hadir',
+      status: isOvertime ? 'Tukar Shift' : 'Hadir',
       checkInTime: checkInTimeStr,
-      alasan: '',
+      alasan: isOvertime ? 'Lembur Mandiri' : '',
+      isLembur: isOvertime,
+      jamLembur: isOvertime ? 8 : 0, // default full shift 8 hours
       penggantiId: '',
       posPlotting: 'Pintu Masuk Utama',
       jamDinas: getJamDinasCode(currentHourShift),
-      lat: gpsLocation.lat,
-      lng: gpsLocation.lng
+      lat: lat,
+      lng: lng,
+      fotoSelfie: finalSelfie
     };
 
     if (todayLog) {
