@@ -4298,6 +4298,11 @@ body, .main-content, .sidebar, .glass-panel, .modern-input, .modern-select, .nav
     padding: 1rem 1rem 5.5rem 1rem !important; /* Generous bottom padding to clear the bottom-nav when visible */
     box-sizing: border-box !important;
   }
+
+  /* Add bottom padding to sidebar footer on mobile to keep Keluar button reachable above gestures */
+  .sidebar-footer {
+    padding-bottom: 3.5rem !important;
+  }
 }
 
 
