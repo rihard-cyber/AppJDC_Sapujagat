@@ -2500,6 +2500,7 @@ export default function App() {
             © 2026 SMPJDC ★ Richard Meha
           </div>
         </div>
+        <div className="sidebar-spacer" />
       </aside>
 
       <main className="main-content" tabIndex={-1} id="main-scroll-container">

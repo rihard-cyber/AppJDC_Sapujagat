@@ -3463,6 +3463,7 @@ h1, h2, h3, h4, h5, h6 {
 .sidebar-footer { padding: 0.75rem 0; border-top: 1px solid var(--border-glass); display: flex; flex-direction: column; gap: 0.3rem; flex-shrink: 0; }
 .sidebar-footer-info { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); }
 .sidebar-footer-copy { font-size: 0.65rem; color: var(--text-muted); opacity: 0.7; }
+.sidebar-spacer { display: none; }
 .header-user-badge {
   display: flex; align-items: center; gap: 0.4rem;
   background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2);
@@ -4299,10 +4300,14 @@ body, .main-content, .sidebar, .glass-panel, .modern-input, .modern-select, .nav
     box-sizing: border-box !important;
   }
 
-  /* Add bottom padding to sidebar footer on mobile to keep Keluar button reachable above gestures */
+  /* Reset margin on sidebar-footer and use a solid spacer element to avoid flexbox scroll height calculation bugs on mobile */
   .sidebar-footer {
-    padding-bottom: 3.5rem !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0.5rem !important;
+  }
+  .sidebar-spacer {
+    display: block !important;
+    height: 7rem !important;
+    flex-shrink: 0 !important;
   }
 }
-
-
