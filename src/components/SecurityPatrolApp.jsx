@@ -511,11 +511,16 @@ export default function SecurityPatrolApp({
 
         {/* Header with SOS */}
         <div className="mobile-header">
-          <div className="mobile-brand">
+          <div style={{ justifySelf: 'start', display: 'flex', alignItems: 'center' }}>
             <img src="logo.png" alt="" className="mobile-logo logo-3d" />
-            <div><h4 className="mobile-app-title">SMPJDC</h4><p className="mobile-app-sub">Aplikasi Patroli</p></div>
           </div>
-          <button onClick={() => onTriggerSOS(currentUser.nama, area?.titik || 'Lobby')} className="sos-btn-small">SOS</button>
+          <div className="mobile-brand-title" style={{ justifySelf: 'center', textAlign: 'center' }}>
+            <h4 className="mobile-app-title" style={{ margin: 0 }}>SMPJDC</h4>
+            <p className="mobile-app-sub" style={{ margin: 0 }}>Aplikasi Patroli</p>
+          </div>
+          <div style={{ justifySelf: 'end', display: 'flex', alignItems: 'center' }}>
+            <button onClick={() => onTriggerSOS(currentUser.nama, area?.titik || 'Lobby')} className="sos-btn-small">SOS</button>
+          </div>
         </div>
 
         {/* User info card */}
