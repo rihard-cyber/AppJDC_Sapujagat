@@ -306,9 +306,6 @@ export default function SecurityPatrolApp({
           .then(stream => {
             activeStream = stream;
             setCameraStream(stream);
-            if (videoRef.current) {
-              videoRef.current.srcObject = stream;
-            }
             setTimeout(() => {
               setFaceRecognized(true);
             }, 2000);
@@ -338,6 +335,16 @@ export default function SecurityPatrolApp({
       }
     };
   }, [tab, selfiePhoto, clockedStatus, scanningPresensi]);
+
+  // Bind camera stream to video element when it becomes available in React lifecycle
+  useEffect(() => {
+    if (cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream;
+      videoRef.current.play().catch(err => {
+        console.warn("Gagal memutar video stream:", err);
+      });
+    }
+  }, [cameraStream]);
 
   // Live Camera Scanner Lifecycle for Presensi QR (Staff Room)
   useEffect(() => {

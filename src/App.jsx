@@ -295,6 +295,19 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
   );
 }
 
+// [NEW COMPONENT] OrnamentalWatermark (Safe, responsive watermark signature)
+export function OrnamentalWatermark() {
+  return (
+    <div className="ornamental-watermark">
+      <span className="ornament-line"></span>
+      <span className="ornament-symbol">❁❀❁</span>
+      <span className="watermark-text">Developer Richard Meha</span>
+      <span className="ornament-symbol">❁❀❁</span>
+      <span className="ornament-line"></span>
+    </div>
+  );
+}
+
 export default function App() {
   const [authenticated, setAuthenticated] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -2392,8 +2405,9 @@ export default function App() {
             <LogOut size={15} />
             <span>Keluar</span>
           </button>
-          <div className="sidebar-footer-copy">
-            © 2026 SMPJDC ★ Richard Meha
+          <div className="sidebar-footer-copy" style={{ opacity: 0.9, padding: '0 0.5rem' }}>
+            <div style={{ fontSize: '0.65rem', marginBottom: '0.2rem', opacity: 0.6 }}>© 2026 SMPJDC. Hak Cipta Dilindungi.</div>
+            <OrnamentalWatermark />
           </div>
         </div>
         <div className="sidebar-spacer" />
@@ -2615,8 +2629,10 @@ export default function App() {
           )}
 
           <footer className={`app-footer ${currentTab === 'guard-simulator' ? 'hide-on-simulator-mobile' : ''}`}>
-            <span>© 2026 <strong className="text-primary">SMPJDC</strong>. Hak Cipta Dilindungi.</span>
-            <span>Developer: <strong>Richard Meha</strong></span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', width: '100%' }}>
+              <span>© 2026 <strong className="text-primary">SMPJDC</strong>. Hak Cipta Dilindungi.</span>
+              <OrnamentalWatermark />
+            </div>
           </footer>
         </div>
       </main>
