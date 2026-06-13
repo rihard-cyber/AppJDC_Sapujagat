@@ -12,6 +12,8 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
+import { Geolocation } from '@capacitor/geolocation';
+import { Camera as CapCamera } from '@capacitor/camera';
 import { executeBackHandlers } from './utils/navigation';
 import { hashPin, verifyPin, validateSession, signUserData, verifyUserDataSignature, signRoleInSession, verifyRoleInSession } from './utils/security';
 import { isSupabaseConfigured } from './utils/supabaseConfig';
@@ -146,174 +148,8 @@ const mapDepartment = (kategori, temuanText = '') => {
 };
 
 // [NEW COMPONENT] DeveloperWatermarkBackground
+// [NEW COMPONENT] DeveloperWatermarkBackground (Optimized with hardware-accelerated CSS animations)
 function DeveloperWatermarkBackground({ theme = 'dark' }) {
-  const watermarkRef = useRef(null);
-
-  useEffect(() => {
-    const watermark = watermarkRef.current;
-    if (!watermark) return;
-
-    const isMobileInit = window.innerWidth <= 768;
-    const initialWidth = isMobileInit ? 260 : 340;
-    const initialHeight = isMobileInit ? 100 : 155;
-
-    let posX = Math.random() * Math.max(10, window.innerWidth - initialWidth);
-    let posY = Math.random() * Math.max(10, window.innerHeight - initialHeight);
-    
-    // Slow down the running velocity: extremely gentle speed on mobile (0.35), standard on desktop (0.8)
-    const initialSpeed = isMobileInit ? 0.35 : 0.8;
-    let dx = (Math.random() > 0.5 ? 1 : -1) * initialSpeed;
-    let dy = (Math.random() > 0.5 ? 1 : -1) * initialSpeed;
-
-    let animationFrameId;
-
-    const updatePosition = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const isMobile = w <= 768;
-
-      // Ensure speed remains slow dynamically if size/orientation changes
-      const currentSpeed = isMobile ? 0.35 : 0.8;
-      dx = (dx < 0 ? -1 : 1) * currentSpeed;
-      dy = (dy < 0 ? -1 : 1) * currentSpeed;
-
-      const logoWidth = watermark.offsetWidth || (isMobile ? 260 : 340);
-      const logoHeight = watermark.offsetHeight || (isMobile ? 100 : 155);
-
-      posX += dx;
-      posY += dy;
-
-      // Collision detection with screen boundaries (clamped cleanly to prevent leaving the screen)
-      if (posX <= 0) {
-        posX = 0;
-        dx = Math.abs(dx);
-      } else if (posX + logoWidth >= w) {
-        posX = Math.max(0, w - logoWidth);
-        dx = -Math.abs(dx);
-      }
-
-      if (posY <= 0) {
-        posY = 0;
-        dy = Math.abs(dy);
-      } else if (posY + logoHeight >= h) {
-        posY = Math.max(0, h - logoHeight);
-        dy = -Math.abs(dy);
-      }
-
-      watermark.style.left = `${posX}px`;
-      watermark.style.top = `${posY}px`;
-
-      // Define check points (center, and offsets)
-      const checkPoints = [
-        { x: posX + logoWidth / 2, y: posY + logoHeight / 2 },
-        { x: posX + logoWidth / 4, y: posY + logoHeight / 2 },
-        { x: posX + logoWidth * 0.75, y: posY + logoHeight / 2 },
-        { x: posX + logoWidth / 2, y: posY + logoHeight / 4 },
-        { x: posX + logoWidth / 2, y: posY + logoHeight * 0.75 }
-      ];
-
-      let isOverlappingText = false;
-
-      for (const pt of checkPoints) {
-        if (pt.x > 0 && pt.x < w && pt.y > 0 && pt.y < h) {
-          const el = document.elementFromPoint(pt.x, pt.y);
-          if (el) {
-            const tag = el.tagName.toLowerCase();
-            const textTags = [
-              'p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
-              'a', 'button', 'input', 'select', 'textarea', 
-              'label', 'li', 'td', 'th', 'strong', 'em', 'b', 'i', 
-              'img', 'svg', 'option'
-            ];
-            
-            let isTextElement = textTags.includes(tag);
-            
-            // If it's a structural element (like a div, section, article), only treat as text overlap
-            // if it has direct text node content or interactive classes (excluding purely structural/container grid classes)
-            if (!isTextElement && (tag === 'div' || tag === 'section' || tag === 'article')) {
-              const hasDirectText = Array.from(el.childNodes).some(
-                node => node.nodeType === 3 && node.textContent.trim().length > 0
-              );
-              
-              const className = typeof el.className === 'string' ? el.className.toLowerCase() : '';
-              // Detect actual interactive items, excluding general layout grids/cards/wrappers
-              const isInteractive = (className.includes('btn') || className.includes('input') || className.includes('badge') || className.includes('value')) && 
-                                    !className.includes('grid') && 
-                                    !className.includes('wrapper') && 
-                                    !className.includes('container') && 
-                                    !className.includes('card');
-              
-              if (hasDirectText || isInteractive) {
-                isTextElement = true;
-              }
-            }
-            
-            if (isTextElement) {
-              isOverlappingText = true;
-              break;
-            }
-          }
-        }
-      }
-
-      const isDark = theme === 'dark';
-      if (isOverlappingText) {
-        // High visibility overlapping opacities (0.82 on mobile, 0.72 on desktop) with active glow
-        const minOpacity = isMobile ? (isDark ? '0.82' : '0.85') : (isDark ? '0.72' : '0.75');
-        watermark.style.opacity = minOpacity;
-        watermark.style.filter = 'blur(0px)';
-        if (isDark) {
-          watermark.style.textShadow = '0 0 12px rgba(0, 255, 255, 0.9), 0 0 22px rgba(0, 255, 255, 0.6)';
-          watermark.style.boxShadow = 'inset 0 0 15px rgba(0, 255, 255, 0.25)';
-          watermark.style.border = '1px solid rgba(0, 255, 255, 0.35)';
-          watermark.style.background = 'rgba(13, 19, 36, 0.35)';
-          watermark.style.backdropFilter = 'none';
-        } else {
-          watermark.style.textShadow = '0 0 10px rgba(59, 130, 246, 0.6)';
-          watermark.style.boxShadow = 'inset 0 0 12px rgba(59, 130, 246, 0.15)';
-          watermark.style.border = '1px solid rgba(59, 130, 246, 0.25)';
-          watermark.style.background = 'rgba(255, 255, 255, 0.45)';
-          watermark.style.backdropFilter = 'none';
-        }
-      } else {
-        // Maximum visibility in empty space (0.98 dark / 1.0 light)
-        watermark.style.opacity = isDark ? '0.98' : '1.0';
-        watermark.style.filter = 'blur(0px)';
-        if (isDark) {
-          watermark.style.textShadow = '0 0 25px rgba(0, 255, 255, 1), 0 0 40px rgba(0, 255, 255, 0.8), 0 0 50px rgba(0, 255, 255, 0.6)';
-          watermark.style.boxShadow = 'inset 0 0 30px rgba(0, 255, 255, 0.5), 0 0 25px rgba(0, 255, 255, 0.3)';
-          watermark.style.border = '2px solid rgba(0, 255, 255, 0.7)';
-          watermark.style.background = 'rgba(13, 19, 36, 0.75)';
-          watermark.style.backdropFilter = 'blur(4px)';
-        } else {
-          watermark.style.textShadow = '0 0 20px rgba(59, 130, 246, 0.95), 0 0 30px rgba(59, 130, 246, 0.6)';
-          watermark.style.boxShadow = 'inset 0 0 25px rgba(59, 130, 246, 0.3), 0 0 20px rgba(59, 130, 246, 0.15)';
-          watermark.style.border = '2px solid rgba(59, 130, 246, 0.6)';
-          watermark.style.background = 'rgba(255, 255, 255, 0.85)';
-          watermark.style.backdropFilter = 'blur(4px)';
-        }
-      }
-
-      animationFrameId = requestAnimationFrame(updatePosition);
-    };
-
-    updatePosition();
-
-    const handleResize = () => {
-      const isMobile = window.innerWidth <= 768;
-      const logoWidth = watermark.offsetWidth || (isMobile ? 260 : 340);
-      const logoHeight = watermark.offsetHeight || (isMobile ? 100 : 155);
-      posX = Math.min(Math.max(0, posX), window.innerWidth - logoWidth);
-      posY = Math.min(Math.max(0, posY), window.innerHeight - logoHeight);
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [theme]);
-
   return (
     <div className={`watermark-bg-container theme-${theme}`}>
       <style>{`
@@ -325,11 +161,21 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
           height: 100vh;
           overflow: hidden;
           pointer-events: none;
-          z-index: 0; /* Placed behind the main cards/content */
+          z-index: 0;
           user-select: none;
+        }
+        @keyframes watermark-drift {
+          0% { transform: translate3d(5vw, 5vh, 0); }
+          25% { transform: translate3d(45vw, 15vh, 0); }
+          50% { transform: translate3d(10vw, 60vh, 0); }
+          75% { transform: translate3d(48vw, 40vh, 0); }
+          100% { transform: translate3d(5vw, 5vh, 0); }
         }
         .ukiran-watermark {
           position: fixed;
+          left: 0;
+          top: 0;
+          animation: watermark-drift 60s ease-in-out infinite;
           text-align: center;
           font-family: 'Consolas', monospace;
           pointer-events: none;
@@ -339,53 +185,72 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
           flex-direction: column;
           align-items: center;
           gap: 0.25rem;
-          transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
           width: 340px;
           padding: 1rem;
           border-radius: 12px;
-          border: 1px solid transparent;
+          transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
-        .ukiran-logo-text {
+        
+        .theme-dark .ukiran-watermark {
+          color: #00ffff;
+          box-shadow: inset 0 0 15px rgba(0, 255, 255, 0.15);
+          border: 1px solid rgba(0, 255, 255, 0.2);
+          background: rgba(13, 19, 36, 0.45);
+          opacity: 0.12;
+        }
+        .theme-dark .ukiran-logo-text {
+          color: #00ffff;
           font-size: 1.45rem;
           font-weight: 900;
           letter-spacing: 0.18em;
-          color: #00ffff;
-          text-shadow: 0 0 15px rgba(0, 255, 255, 1), 0 0 25px rgba(0, 255, 255, 0.8), 0 0 35px rgba(0, 255, 255, 0.6);
+          text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
           -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.8);
         }
-        .ukiran-sub-text {
+        .theme-dark .ukiran-sub-text {
           font-size: 0.75rem;
           letter-spacing: 0.22em;
           color: #c7d2fe;
           font-weight: bold;
           -webkit-text-stroke: 0.3px rgba(0, 0, 0, 0.5);
         }
-        .ukiran-ornament-top, .ukiran-ornament-bottom {
+        .theme-dark .ukiran-ornament-top, .theme-dark .ukiran-ornament-bottom {
           font-size: 1.05rem;
           color: #00ffff;
           letter-spacing: 0.1em;
-          opacity: 1.0;
           font-weight: bold;
           -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.8);
         }
-        
-        /* Light theme adjustments for high quality legibility */
+
+        .theme-light .ukiran-watermark {
+          color: #1e3a8a;
+          box-shadow: inset 0 0 12px rgba(59, 130, 246, 0.1);
+          border: 1px solid rgba(59, 130, 246, 0.15);
+          background: rgba(255, 255, 255, 0.5);
+          opacity: 0.08;
+        }
         .theme-light .ukiran-logo-text {
           color: #1e3a8a;
+          font-size: 1.45rem;
           font-weight: 900;
-          text-shadow: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 18px rgba(59, 130, 246, 0.3);
+          letter-spacing: 0.18em;
+          text-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
           -webkit-text-stroke: 0.6px rgba(255, 255, 255, 0.9);
         }
         .theme-light .ukiran-sub-text {
+          font-size: 0.75rem;
+          letter-spacing: 0.22em;
           color: #2563eb;
+          font-weight: bold;
           -webkit-text-stroke: 0.3px rgba(255, 255, 255, 0.7);
         }
         .theme-light .ukiran-ornament-top, .theme-light .ukiran-ornament-bottom {
+          font-size: 1.05rem;
           color: #2563eb;
+          letter-spacing: 0.1em;
+          font-weight: bold;
           -webkit-text-stroke: 0.6px rgba(255, 255, 255, 0.9);
         }
 
-        /* Set LoginPage transparent to show global watermark background */
         .login-page {
           background: transparent !important;
         }
@@ -395,20 +260,28 @@ function DeveloperWatermarkBackground({ theme = 'dark' }) {
             width: 260px;
             padding: 0.5rem;
           }
-          .ukiran-logo-text {
+          .theme-dark .ukiran-logo-text, .theme-light .ukiran-logo-text {
             font-size: 1.15rem;
             letter-spacing: 0.12em;
           }
-          .ukiran-sub-text {
+          .theme-dark .ukiran-sub-text, .theme-light .ukiran-sub-text {
             font-size: 0.65rem;
             letter-spacing: 0.12em;
           }
-          .ukiran-ornament-top, .ukiran-ornament-bottom {
+          .theme-dark .ukiran-ornament-top, .theme-dark .ukiran-ornament-bottom,
+          .theme-light .ukiran-ornament-top, .theme-light .ukiran-ornament-bottom {
             font-size: 0.85rem;
+          }
+          @keyframes watermark-drift {
+            0% { transform: translate3d(5vw, 5vh, 0); }
+            25% { transform: translate3d(25vw, 15vh, 0); }
+            50% { transform: translate3d(5vw, 55vh, 0); }
+            75% { transform: translate3d(28vw, 35vh, 0); }
+            100% { transform: translate3d(5vw, 5vh, 0); }
           }
         }
       `}</style>
-      <div ref={watermarkRef} className="ukiran-watermark">
+      <div className="ukiran-watermark">
         <div className="ukiran-ornament-top">
           ◤━━━━ ❖ ━━━━◥
         </div>
@@ -445,6 +318,29 @@ export default function App() {
       Object.values(toastTimers.current).forEach(clearTimeout);
       toastTimers.current = {};
     };
+  }, []);
+
+  // Request native permissions on mount for camera and GPS to prevent crashes and enable auto-start
+  useEffect(() => {
+    const initNativePermissions = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          // Check/Request Camera permission
+          const cameraStatus = await CapCamera.checkPermissions();
+          if (cameraStatus.camera !== 'granted') {
+            await CapCamera.requestPermissions();
+          }
+          // Check/Request Location permission
+          const locationStatus = await Geolocation.checkPermissions();
+          if (locationStatus.location !== 'granted') {
+            await Geolocation.requestPermissions();
+          }
+        } catch (e) {
+          console.warn('[Permissions] Failed to initialize native permissions:', e);
+        }
+      }
+    };
+    initNativePermissions();
   }, []);
 
   useEffect(() => {
